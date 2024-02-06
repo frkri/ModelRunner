@@ -1,8 +1,8 @@
+use anyhow::Result;
 use clap_serde_derive::ClapSerde;
 use serde::Deserialize;
-use anyhow::Result;
 
-#[derive(ClapSerde, Deserialize)]
+#[derive(ClapSerde, Deserialize, Debug)]
 pub struct Config {
     /// The address the listener binds to
     #[arg(short, long)]
