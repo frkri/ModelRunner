@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use anyhow::{Context, Result};
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -9,9 +11,9 @@ use log::{error, info};
 use tokio::net::TcpListener;
 
 use crate::config::Config;
-use crate::error::HttpErrorResponse;
 use crate::error::ModelRunnerError;
-use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::error::{HttpErrorResponse, ModelResult};
+use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 mod config;
 mod error;
@@ -30,16 +32,18 @@ struct Args {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: model::phi2::Phi2Model = model::phi2::Phi2Model {
-        name: "Phi2".to_string(),
-        download_url: "https://example.com/phi2".to_string(),
-    };
-    static ref PHI3_MODEL: model::phi3::Phi3Model = model::phi3::Phi3Model {
-        name: "Phi3".to_string(),
-        download_url: "https://example.com/phi3".to_string(),
-    };
+    static ref PHI2_MODEL: Mutex<model::phi2::Phi2Model> = Mutex::new(
+        model::phi2::Phi2Model::new(
+            "lmz/candle-quantized-phi".into(),
+            "main".into(),
+            "model-puffin-phi-v2-q4k.gguf".into(),
+            Some(299792458),
+            Some(0.8),
+            Some(0.2),
+        )
+        .expect("Failed to initialize Phi2Model")
+    );
 }
-
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
@@ -52,7 +56,9 @@ async fn main() -> Result<(), anyhow::Error> {
         ))?
         .merge(args.opt_config);
 
-    let router = Router::new().route("/instruct", get(handle_instruct_request));
+    // TODO finish routes
+    // TODO act on request cancellation
+    let router = Router::new().route("/raw", get(handle_raw_request));
 
     let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     info!("Listening on {}", listener.local_addr().unwrap());
@@ -63,6 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+// TODO set timeout for shutdown signal
 async fn shutdown_signal() {
     match tokio::signal::ctrl_c().await {
         Ok(()) => info!("Shutting down..."),
@@ -71,12 +78,14 @@ async fn shutdown_signal() {
 }
 
 #[axum_macros::debug_handler]
-async fn handle_instruct_request(
-    Json(req): Json<InstructRequest>,
-) -> Result<(StatusCode, Json<InstructResponse>), ModelRunnerError> {
+async fn handle_raw_request(
+    Json(req): Json<RawRequest>,
+) -> ModelResult<(StatusCode, Json<RawResponse>)> {
     match req.model.as_str() {
-        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.run(req)?))),
-        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.run(req)?))),
+        "phi2" => {
+            let mut model = PHI2_MODEL.lock().unwrap(); // TODO try remove mutex?
+            Ok((StatusCode::OK, Json(model.run(req)?)))
+        }
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }

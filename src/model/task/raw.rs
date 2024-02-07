@@ -2,16 +2,16 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct InstructRequest {
+pub struct RawRequest {
     pub model: String,
     pub input: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct InstructResponse {
+pub struct RawResponse {
     pub output: String,
 }
 
-pub trait InstructHandler {
-    fn run(&self, params: InstructRequest) -> Result<InstructResponse, Error>;
+pub trait RawHandler {
+    fn run(&mut self, params: RawRequest) -> Result<RawResponse, Error>;
 }
