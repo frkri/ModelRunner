@@ -13,7 +13,6 @@ use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
 pub struct Phi2Model {
-    base: ModelBase,
     generator_pipeline: GeneratorPipeline,
 }
 
@@ -24,6 +23,14 @@ pub struct Phi2ModelConfig {
     top_p: Option<f64>,
     repeat_penalty: f32,
     repeat_context_size: usize,
+}
+
+impl Clone for Phi2Model {
+    fn clone(&self) -> Self {
+        Phi2Model {
+            generator_pipeline: self.generator_pipeline.clone(),
+        }
+    }
 }
 
 impl Default for Phi2ModelConfig {
@@ -65,10 +72,7 @@ impl Phi2Model {
             phi2_config.repeat_context_size,
         )?;
 
-        let model = Phi2Model {
-            base,
-            generator_pipeline,
-        };
+        let model = Phi2Model { generator_pipeline };
 
         Ok(model)
     }

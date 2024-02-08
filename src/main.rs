@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use anyhow::{Context, Result};
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -37,31 +35,30 @@ struct Args {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: Mutex<Phi2Model> = Mutex::new(
-        Phi2Model::new(
-            Api::new().expect("Failed to create API"),
-            ModelBase {
-                name: "Candle Phi2".into(),
-                license: "MIT".into(),
-                domain: ModelDomain::Text(vec![
-                    TextTask::Chat,
-                    TextTask::Extract,
-                    TextTask::Instruct,
-                    TextTask::Sentiment,
-                    TextTask::Translate,
-                    TextTask::Identify,
-                ]),
-                repo_id: "lmz/candle-quantized-phi".into(),
-                repo_revision: "main".into(),
-            },
-            "tokenizer-puffin-phi-v2.json".into(),
-            "model-puffin-phi-v2-q80.gguf".into(),
-            mixformer::Config::puffin_phi_v2(),
-            Phi2ModelConfig::default(),
-        )
-        .unwrap()
-    );
+    static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Candle Phi2".into(),
+            license: "MIT".into(),
+            domain: ModelDomain::Text(vec![
+                TextTask::Chat,
+                TextTask::Extract,
+                TextTask::Instruct,
+                TextTask::Sentiment,
+                TextTask::Translate,
+                TextTask::Identify,
+            ]),
+            repo_id: "lmz/candle-quantized-phi".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-puffin-phi-v2.json".into(),
+        "model-puffin-phi-v2-q80.gguf".into(),
+        mixformer::Config::puffin_phi_v2(),
+        Phi2ModelConfig::default(),
+    )
+    .unwrap();
 }
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
@@ -109,10 +106,7 @@ async fn handle_raw_request(
     Json(req): Json<RawRequest>,
 ) -> ModelResult<(StatusCode, Json<RawResponse>)> {
     match req.model.as_str() {
-        "phi2" => {
-            let mut model = PHI2_MODEL.lock().unwrap(); // TODO try remove mutex?
-            Ok((StatusCode::OK, Json(model.run_raw(req)?)))
-        }
+        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
@@ -122,10 +116,7 @@ async fn handle_instruct_request(
     Json(req): Json<InstructRequest>,
 ) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
-        "phi2" => {
-            let mut model = PHI2_MODEL.lock().unwrap();
-            Ok((StatusCode::OK, Json(model.run_instruct(req)?)))
-        }
+        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_instruct(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }

@@ -15,6 +15,29 @@ pub struct GeneratorPipeline {
     pub logits_processor: LogitsProcessor,
     pub repeat_penalty: f32,
     pub repeat_context_size: usize,
+    pub seed: Option<u64>,
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+}
+
+impl GeneratorPipeline {
+    pub(crate) fn clone(&self) -> GeneratorPipeline {
+        GeneratorPipeline {
+            model: self.model.clone(),
+            device: self.device.clone(),
+            tokenizer: self.tokenizer.clone(),
+            logits_processor: LogitsProcessor::new(
+                self.seed.unwrap_or(random()),
+                self.temperature,
+                self.top_p,
+            ),
+            repeat_penalty: self.repeat_penalty,
+            repeat_context_size: self.repeat_context_size,
+            seed: self.seed,
+            temperature: self.temperature,
+            top_p: self.top_p,
+        }
+    }
 }
 
 impl GeneratorPipeline {
@@ -44,6 +67,9 @@ impl GeneratorPipeline {
             logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
             repeat_penalty,
             repeat_context_size,
+            seed,
+            temperature,
+            top_p,
         };
 
         Ok(pipeline)
