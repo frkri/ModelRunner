@@ -1,10 +1,11 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct RawRequest {
     pub model: String,
     pub input: String,
+    pub max_length: usize,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

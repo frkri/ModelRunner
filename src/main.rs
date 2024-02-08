@@ -4,8 +4,10 @@ use anyhow::{Context, Result};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
+use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
+use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
 use tokio::net::TcpListener;
@@ -13,6 +15,8 @@ use tokio::net::TcpListener;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
+use crate::model::model::{ModelBase, ModelDomain, TextTask};
+use crate::model::phi2::{Phi2Model, Phi2ModelConfig};
 use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 mod config;
@@ -32,16 +36,29 @@ struct Args {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: Mutex<model::phi2::Phi2Model> = Mutex::new(
-        model::phi2::Phi2Model::new(
-            "lmz/candle-quantized-phi".into(),
-            "main".into(),
+    static ref PHI2_MODEL: Mutex<Phi2Model> = Mutex::new(
+        Phi2Model::new(
+            Api::new().expect("Failed to create API"),
+            ModelBase {
+                name: "Candle Phi2".into(),
+                license: "MIT".into(),
+                domain: ModelDomain::Text(vec![
+                    TextTask::Chat,
+                    TextTask::Extract,
+                    TextTask::Instruct,
+                    TextTask::Sentiment,
+                    TextTask::Translate,
+                    TextTask::Identify,
+                ]),
+                repo_id: "lmz/candle-quantized-phi".into(),
+                repo_revision: "main".into(),
+            },
+            "tokenizer-puffin-phi-v2.json".into(),
             "model-puffin-phi-v2-q4k.gguf".into(),
-            Some(299792458),
-            Some(0.8),
-            Some(0.2),
+            mixformer::Config::puffin_phi_v2(),
+            Phi2ModelConfig::default(),
         )
-        .expect("Failed to initialize Phi2Model")
+        .unwrap()
     );
 }
 #[tokio::main]

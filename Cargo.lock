@@ -1198,6 +1198,7 @@ dependencies = [
  "hf-hub",
  "lazy_static",
  "log",
+ "rand",
  "serde",
  "tokenizers",
  "tokio",
