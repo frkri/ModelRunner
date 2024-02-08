@@ -29,7 +29,7 @@ impl Default for Phi2ModelConfig {
             seed: random(),
             temperature: Some(0.8),
             top_p: Some(0.9),
-            repeat_penalty: 1.1,
+            repeat_penalty: 0.7,
             repeat_context_size: 64,
         }
     }
