@@ -62,6 +62,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     info!("Listening on {}", listener.local_addr().unwrap());
+    info!(
+        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
+        candle_core::utils::with_avx(),
+        candle_core::utils::with_neon(),
+        candle_core::utils::with_simd128(),
+        candle_core::utils::with_f16c()
+    );
 
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal())

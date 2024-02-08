@@ -57,14 +57,6 @@ impl Phi2Model {
             top_p,
         };
 
-        debug!(
-            "avx: {}, neon: {}, simd128: {}, f16c: {}",
-            candle_core::utils::with_avx(),
-            candle_core::utils::with_neon(),
-            candle_core::utils::with_simd128(),
-            candle_core::utils::with_f16c()
-        );
-
         phi2_model.load_model()?;
         Ok(phi2_model)
     }
