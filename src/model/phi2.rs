@@ -27,13 +27,16 @@ impl RawHandler for Phi2Model {
     fn run(&mut self, params: RawRequest) -> Result<RawResponse, Error> {
         debug!("Running inference on Phi2Model: {:?}", params);
 
-        let output = self
+        let (output, inference_time) = self
             .generator_pipeline
             .as_mut()
             .unwrap()
             .generate(&params.input, 150)?;
 
-        Ok(RawResponse { output })
+        Ok(RawResponse {
+            output,
+            inference_time,
+        })
     }
 }
 
@@ -108,7 +111,7 @@ struct GeneratorPipeline {
 }
 
 impl GeneratorPipeline {
-    fn generate(&mut self, prompt: &str, max_length: usize) -> Result<String, Error> {
+    fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64), Error> {
         // Like I understand anything here
         self.model.clear_kv_cache();
 
@@ -154,12 +157,7 @@ impl GeneratorPipeline {
             let token = self.tokenizer.decode(&[next_token], true).unwrap();
             output.push_str(&token);
         }
-        let dt = start_gen.elapsed();
-        debug!(
-            "\n{generated_tokens} tokens generated ({:.2} token/s)",
-            generated_tokens as f64 / dt.as_secs_f64(),
-        );
 
-        Ok(output)
+        Ok((output, start_gen.elapsed().as_secs_f64()))
     }
 }

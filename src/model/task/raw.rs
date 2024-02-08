@@ -10,6 +10,7 @@ pub struct RawRequest {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RawResponse {
     pub output: String,
+    pub inference_time: f64,
 }
 
 pub trait RawHandler {
