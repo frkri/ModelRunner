@@ -2,11 +2,11 @@ use anyhow::Error;
 use candle_transformers::models::mixformer;
 use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
-use log::debug;
 use rand::random;
 
 use crate::model::model::ModelBase;
 use crate::model::runner::GeneratorPipeline;
+use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
@@ -73,12 +73,24 @@ impl Phi2Model {
 
 impl RawHandler for Phi2Model {
     fn run(&mut self, params: RawRequest) -> Result<RawResponse, Error> {
-        debug!("Running inference on Phi2Model: {:?}", params);
-
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&params.input, params.max_length)?;
         Ok(RawResponse {
+            output,
+            inference_time,
+        })
+    }
+}
+
+impl InstructHandler for Phi2Model {
+    fn run(&mut self, params: InstructRequest) -> Result<InstructResponse, Error> {
+        let prompt = format!("USER: {}\nASSISTANT:", params.input);
+        let (output, inference_time) = self
+            .generator_pipeline
+            .generate(&prompt, params.max_length)?;
+
+        Ok(InstructResponse {
             output,
             inference_time,
         })
