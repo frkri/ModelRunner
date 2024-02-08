@@ -15,5 +15,5 @@ pub struct InstructResponse {
 }
 
 pub trait InstructHandler {
-    fn run(&mut self, params: InstructRequest) -> Result<InstructResponse, Error>;
+    fn run_instruct(&mut self, params: InstructRequest) -> Result<InstructResponse, Error>;
 }

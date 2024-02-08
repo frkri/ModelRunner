@@ -1,8 +1,10 @@
 use anyhow::Error;
+use candle_transformers::generation::LogitsProcessor;
 use candle_transformers::models::mixformer;
 use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::random;
+use serde::Deserialize;
 
 use crate::model::model::ModelBase;
 use crate::model::runner::GeneratorPipeline;
@@ -15,6 +17,7 @@ pub struct Phi2Model {
     generator_pipeline: GeneratorPipeline,
 }
 
+#[derive(Deserialize, Debug)]
 pub struct Phi2ModelConfig {
     seed: Option<u64>,
     temperature: Option<f64>,
@@ -72,10 +75,19 @@ impl Phi2Model {
 }
 
 impl RawHandler for Phi2Model {
-    fn run(&mut self, params: RawRequest) -> Result<RawResponse, Error> {
-        let (output, inference_time) = self
-            .generator_pipeline
-            .generate(&params.input, params.max_length)?;
+    fn run_raw(&mut self, params: RawRequest) -> Result<RawResponse, Error> {
+        let pipeline = &mut self.generator_pipeline;
+        let logits = LogitsProcessor::new(
+            params.model_config.seed.unwrap_or(random()),
+            params.model_config.temperature,
+            params.model_config.top_p,
+        );
+
+        pipeline.repeat_penalty = params.model_config.repeat_penalty;
+        pipeline.repeat_context_size = params.model_config.repeat_context_size;
+        pipeline.logits_processor = logits;
+
+        let (output, inference_time) = pipeline.generate(&params.input, params.max_length)?;
         Ok(RawResponse {
             output,
             inference_time,
@@ -84,8 +96,8 @@ impl RawHandler for Phi2Model {
 }
 
 impl InstructHandler for Phi2Model {
-    fn run(&mut self, params: InstructRequest) -> Result<InstructResponse, Error> {
-        let prompt = format!("USER: {}\nASSISTANT:", params.input);
+    fn run_instruct(&mut self, params: InstructRequest) -> Result<InstructResponse, Error> {
+        let prompt = format!("Instruct: {}\nOutput:", params.input);
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&prompt, params.max_length)?;

@@ -17,6 +17,7 @@ use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
 use crate::model::model::{ModelBase, ModelDomain, TextTask};
 use crate::model::phi2::{Phi2Model, Phi2ModelConfig};
+use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 mod config;
@@ -54,7 +55,7 @@ lazy_static! {
                 repo_revision: "main".into(),
             },
             "tokenizer-puffin-phi-v2.json".into(),
-            "model-puffin-phi-v2-q4k.gguf".into(),
+            "model-puffin-phi-v2-q80.gguf".into(),
             mixformer::Config::puffin_phi_v2(),
             Phi2ModelConfig::default(),
         )
@@ -110,7 +111,7 @@ async fn handle_raw_request(
     match req.model.as_str() {
         "phi2" => {
             let mut model = PHI2_MODEL.lock().unwrap(); // TODO try remove mutex?
-            Ok((StatusCode::OK, Json(model.run(req)?)))
+            Ok((StatusCode::OK, Json(model.run_raw(req)?)))
         }
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
@@ -118,12 +119,12 @@ async fn handle_raw_request(
 
 #[axum_macros::debug_handler]
 async fn handle_instruct_request(
-    Json(req): Json<RawRequest>,
-) -> ModelResult<(StatusCode, Json<RawResponse>)> {
+    Json(req): Json<InstructRequest>,
+) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
         "phi2" => {
             let mut model = PHI2_MODEL.lock().unwrap();
-            Ok((StatusCode::OK, Json(model.run(req)?)))
+            Ok((StatusCode::OK, Json(model.run_instruct(req)?)))
         }
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }

@@ -1,11 +1,14 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
+use crate::model::phi2::Phi2ModelConfig;
+
 #[derive(Deserialize, Debug)]
 pub struct RawRequest {
     pub model: String,
     pub input: String,
     pub max_length: usize,
+    pub model_config: Phi2ModelConfig,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -15,5 +18,5 @@ pub struct RawResponse {
 }
 
 pub trait RawHandler {
-    fn run(&mut self, params: RawRequest) -> Result<RawResponse, Error>;
+    fn run_raw(&mut self, params: RawRequest) -> Result<RawResponse, Error>;
 }
