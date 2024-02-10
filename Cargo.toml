@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7.4"
+axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros"] }
+axum-macros = "0.4.1"
 anyhow = "1.0.79"
 clap = { version = "4.4.18", features = ["derive"] }
 clap-serde-derive = "0.2.1"
@@ -13,9 +14,8 @@ tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "si
 toml = "0.8.10"
 log = "0.4.20"
 env_logger = "0.11.1"
-axum-macros = "0.4.1"
 lazy_static = "1.4.0"
-candle-transformers =  "0.3.3"
+candle-transformers = "0.3.3"
 tokenizers = "0.15.1"
 hf-hub = "0.3.2"
 candle-core = "0.3.3"
