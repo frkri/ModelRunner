@@ -2,16 +2,21 @@ use anyhow::{Context, Result};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
+use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
+use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
 use tokio::net::TcpListener;
 
 use crate::config::Config;
-use crate::error::HttpErrorResponse;
 use crate::error::ModelRunnerError;
+use crate::error::{HttpErrorResponse, ModelResult};
+use crate::model::model::{ModelBase, ModelDomain, TextTask};
+use crate::model::phi2::{Phi2Model, Phi2ModelConfig};
 use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
 
 mod config;
 mod error;
@@ -30,14 +35,28 @@ struct Args {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: model::phi2::Phi2Model = model::phi2::Phi2Model {
-        name: "Phi2".to_string(),
-        download_url: "https://example.com/phi2".to_string(),
-    };
-    static ref PHI3_MODEL: model::phi3::Phi3Model = model::phi3::Phi3Model {
-        name: "Phi3".to_string(),
-        download_url: "https://example.com/phi3".to_string(),
-    };
+    static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Candle Phi2".into(),
+            license: "MIT".into(),
+            domain: ModelDomain::Text(vec![
+                TextTask::Chat,
+                TextTask::Extract,
+                TextTask::Instruct,
+                TextTask::Sentiment,
+                TextTask::Translate,
+                TextTask::Identify,
+            ]),
+            repo_id: "lmz/candle-quantized-phi".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-puffin-phi-v2.json".into(),
+        "model-puffin-phi-v2-q80.gguf".into(),
+        mixformer::Config::puffin_phi_v2(),
+        Phi2ModelConfig::default(),
+    )
+    .unwrap();
 }
 
 #[tokio::main]
@@ -52,10 +71,21 @@ async fn main() -> Result<(), anyhow::Error> {
         ))?
         .merge(args.opt_config);
 
-    let router = Router::new().route("/instruct", get(handle_instruct_request));
+    // TODO finish routes
+    // TODO act on request cancellation
+    let router = Router::new()
+        .route("/raw", get(handle_raw_request))
+        .route("/instruct", get(handle_instruct_request));
 
     let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     info!("Listening on {}", listener.local_addr().unwrap());
+    info!(
+        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
+        candle_core::utils::with_avx(),
+        candle_core::utils::with_neon(),
+        candle_core::utils::with_simd128(),
+        candle_core::utils::with_f16c()
+    );
 
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal())
@@ -63,6 +93,7 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+// TODO set timeout for shutdown signal
 async fn shutdown_signal() {
     match tokio::signal::ctrl_c().await {
         Ok(()) => info!("Shutting down..."),
@@ -71,12 +102,21 @@ async fn shutdown_signal() {
 }
 
 #[axum_macros::debug_handler]
+async fn handle_raw_request(
+    Json(req): Json<RawRequest>,
+) -> ModelResult<(StatusCode, Json<RawResponse>)> {
+    match req.model.as_str() {
+        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_raw(req)?))),
+        _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
+    }
+}
+
+#[axum_macros::debug_handler]
 async fn handle_instruct_request(
     Json(req): Json<InstructRequest>,
-) -> Result<(StatusCode, Json<InstructResponse>), ModelRunnerError> {
+) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
-        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.run(req)?))),
-        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.run(req)?))),
+        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_instruct(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }

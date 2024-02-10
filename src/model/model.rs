@@ -1,18 +1,21 @@
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub struct Model {
+pub struct ModelBase {
     /// The name of the model
-    name: String,
+    pub name: String,
 
     /// The license of the model
-    license: String,
+    pub license: String,
 
     /// The domain that the model is designed for including the tasks it can perform
-    domain: ModelDomain,
+    pub domain: ModelDomain,
 
-    /// The URL to the model file
-    download_urls: Vec<String>,
+    /// The id of the model repository
+    pub repo_id: String,
+
+    /// The revision of the model repository
+    pub repo_revision: String,
 }
 
 #[derive(Deserialize, Debug)]
