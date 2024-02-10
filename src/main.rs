@@ -52,7 +52,7 @@ lazy_static! {
             repo_revision: "main".into(),
         },
         "tokenizer-puffin-phi-v2.json".into(),
-        "models-puffin-phi-v2-q80.gguf".into(),
+        "model-puffin-phi-v2-q80.gguf".into(),
         mixformer::Config::puffin_phi_v2(),
         Phi2ModelConfig::default(),
     )
