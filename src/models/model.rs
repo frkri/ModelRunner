@@ -2,19 +2,19 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct ModelBase {
-    /// The name of the model
+    /// The name of the models
     pub name: String,
 
-    /// The license of the model
+    /// The license of the models
     pub license: String,
 
-    /// The domain that the model is designed for including the tasks it can perform
+    /// The domain that the models is designed for including the tasks it can perform
     pub domain: ModelDomain,
 
-    /// The id of the model repository
+    /// The id of the models repository
     pub repo_id: String,
 
-    /// The revision of the model repository
+    /// The revision of the models repository
     pub repo_revision: String,
 }
 

@@ -1,7 +1,7 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::model::phi2::Phi2ModelConfig;
+use crate::models::phi2::Phi2ModelConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct RawRequest {

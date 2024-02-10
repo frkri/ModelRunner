@@ -6,10 +6,10 @@ use hf_hub::{Repo, RepoType};
 use rand::random;
 use serde::Deserialize;
 
-use crate::model::model::ModelBase;
-use crate::model::runner::GeneratorPipeline;
-use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
-use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::models::model::ModelBase;
+use crate::models::runner::GeneratorPipeline;
+use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
 pub struct Phi2Model {

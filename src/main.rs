@@ -13,14 +13,14 @@ use tokio::net::TcpListener;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::model::model::{ModelBase, ModelDomain, TextTask};
-use crate::model::phi2::{Phi2Model, Phi2ModelConfig};
-use crate::model::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
-use crate::model::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::models::model::{ModelBase, ModelDomain, TextTask};
+use crate::models::phi2::{Phi2Model, Phi2ModelConfig};
+use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
 
 mod config;
 mod error;
-mod model;
+mod models;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -52,7 +52,7 @@ lazy_static! {
             repo_revision: "main".into(),
         },
         "tokenizer-puffin-phi-v2.json".into(),
-        "model-puffin-phi-v2-q80.gguf".into(),
+        "models-puffin-phi-v2-q80.gguf".into(),
         mixformer::Config::puffin_phi_v2(),
         Phi2ModelConfig::default(),
     )
