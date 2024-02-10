@@ -71,11 +71,12 @@ async fn main() -> Result<(), anyhow::Error> {
         ))?
         .merge(args.opt_config);
 
-    // TODO finish routes
     // TODO act on request cancellation
-    let router = Router::new()
+    let text_router = Router::new()
         .route("/raw", get(handle_raw_request))
         .route("/instruct", get(handle_instruct_request));
+
+    let router = Router::new().nest("/text", text_router);
 
     let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     info!("Listening on {}", listener.local_addr().unwrap());
