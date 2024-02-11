@@ -21,6 +21,14 @@ impl From<String> for HttpErrorResponse {
     }
 }
 
+impl From<&str> for HttpErrorResponse {
+    fn from(message: &str) -> Self {
+        HttpErrorResponse {
+            error: message.to_string(),
+        }
+    }
+}
+
 impl IntoResponse for ModelRunnerError {
     fn into_response(self) -> Response {
         let mut res = Json(self.message).into_response();

@@ -7,13 +7,12 @@ use rand::random;
 use serde::Deserialize;
 
 use crate::models::model::ModelBase;
-use crate::models::runner::GeneratorPipeline;
+use crate::models::runner::TextGeneratorPipeline;
 use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
 
-// Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
 pub struct Phi2Model {
-    generator_pipeline: GeneratorPipeline,
+    generator_pipeline: TextGeneratorPipeline,
 }
 
 #[derive(Deserialize, Debug)]
@@ -60,7 +59,7 @@ impl Phi2Model {
             base.repo_revision.clone(),
         ));
 
-        let generator_pipeline = GeneratorPipeline::with_gguf_mixformer_model(
+        let generator_pipeline = TextGeneratorPipeline::with_gguf_mixformer_model(
             repo,
             mixformer_config,
             tokenizer_filename.as_str(),
