@@ -82,7 +82,7 @@ lazy_static! {
         },
         "config-tiny.json".into(),
         "tokenizer-tiny.json".into(),
-        "model-tiny-q80.gguf".into(),
+        "model-tiny-q4k.gguf".into(),
         "melfilters.bytes".into(),
     )
     .unwrap();
