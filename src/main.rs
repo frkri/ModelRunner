@@ -1,6 +1,11 @@
+extern crate core;
+
+use std::io::Write;
+
 use anyhow::{Context, Result};
+use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use candle_transformers::models::mixformer;
 use clap::Parser;
@@ -17,6 +22,8 @@ use crate::models::model::{ModelBase, ModelDomain, TextTask};
 use crate::models::phi2::{Phi2Model, Phi2ModelConfig};
 use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::models::task::transcribe::{TranscribeHandler, TranscribeRequest, TranscribeResponse};
+use crate::models::whisper::WhisperModel;
 
 mod config;
 mod error;
@@ -57,6 +64,28 @@ lazy_static! {
         Phi2ModelConfig::default(),
     )
     .unwrap();
+    static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Candle Whisper".into(),
+            license: "MIT".into(),
+            domain: ModelDomain::Text(vec![
+                TextTask::Chat,
+                TextTask::Extract,
+                TextTask::Instruct,
+                TextTask::Sentiment,
+                TextTask::Translate,
+                TextTask::Identify,
+            ]),
+            repo_id: "lmz/candle-whisper".into(),
+            repo_revision: "main".into(),
+        },
+        "config-tiny.json".into(),
+        "tokenizer-tiny.json".into(),
+        "model-tiny-q80.gguf".into(),
+        "melfilters.bytes".into(),
+    )
+    .unwrap();
 }
 
 #[tokio::main]
@@ -76,7 +105,14 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/raw", get(handle_raw_request))
         .route("/instruct", get(handle_instruct_request));
 
-    let router = Router::new().nest("/text", text_router);
+    let audio_router = Router::new()
+        .route("/transcribe", post(handle_transcribe_request))
+        // 2 MB limit
+        .layer(DefaultBodyLimit::max(2_000_000));
+
+    let router = Router::new()
+        .nest("/text", text_router)
+        .nest("/audio", audio_router);
 
     let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     info!("Listening on {}", listener.local_addr().unwrap());
@@ -121,3 +157,79 @@ async fn handle_instruct_request(
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
+
+#[axum_macros::debug_handler]
+async fn handle_transcribe_request(
+    mut multipart: Multipart,
+) -> ModelResult<(StatusCode, Json<TranscribeResponse>)> {
+    let mut opt_request = None;
+    let mut opt_file_bytes = None;
+
+    while let Some(field) = multipart.next_field().await? {
+        if let Some(name) = field.name() {
+            match name {
+                "request_content" => {
+                    if field
+                        .content_type()
+                        .map_or(false, |content| content != "application/json")
+                    {
+                        bail_runner!(
+                            StatusCode::BAD_REQUEST,
+                            "Invalid mime type in content-type header for request_content field"
+                        );
+                    }
+                    opt_request = Some(Json::<TranscribeRequest>::from_bytes(
+                        &field.bytes().await?,
+                    )?)
+                }
+                "audio_content" => {
+                    if field
+                        .content_type()
+                        .map_or(false, |content| !VALID_WAV_MIME_TYPES.contains(&content))
+                    {
+                        bail_runner!(
+                            StatusCode::BAD_REQUEST,
+                            "Invalid mime type in content-type header for audio_content field"
+                        );
+                    }
+                    opt_file_bytes = Some(field.bytes().await?);
+                }
+                _ => bail_runner!(StatusCode::BAD_REQUEST, "Unknown field {}", name),
+            }
+        }
+    }
+
+    if opt_request.is_none() || opt_file_bytes.is_none() {
+        let missing_field = if opt_request.is_none() {
+            "request_content"
+        } else {
+            "audio_content"
+        };
+        bail_runner!(
+            StatusCode::BAD_REQUEST,
+            "Missing field {} in multipart form",
+            missing_field
+        );
+    }
+    let file_bytes = opt_file_bytes.unwrap().to_vec().into_boxed_slice();
+    let request = opt_request.as_ref().unwrap();
+
+    match request.model.as_str() {
+        "whisper" => Ok((
+            StatusCode::OK,
+            Json(
+                WHISPER_MODEL
+                    .clone()
+                    .run_transcribe(file_bytes, &request.language)?,
+            ),
+        )),
+        _ => bail_runner!(
+            StatusCode::NOT_FOUND,
+            "Model {} not found",
+            &opt_request.unwrap().model
+        ),
+    }
+}
+// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
+static VALID_WAV_MIME_TYPES: [&str; 4] =
+    ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
