@@ -107,8 +107,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
-        // 2 MB limit
-        .layer(DefaultBodyLimit::max(2_000_000));
+        // 10 MB limit
+        .layer(DefaultBodyLimit::max(10_000_000));
 
     let router = Router::new()
         .nest("/text", text_router)
