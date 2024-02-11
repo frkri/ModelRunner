@@ -269,46 +269,6 @@ impl AudioGeneratorPipeline {
                 duration: segment_duration,
                 dr,
             };
-            if self.timestamps {
-                debug!(
-                    "{:.1}s -- {:.1}s",
-                    segment.start,
-                    segment.start + segment.duration,
-                );
-                let mut tokens_to_decode = vec![];
-                let mut prev_timestamp_s = 0f32;
-                for &token in segment.dr.tokens.iter() {
-                    if token == self.sot_token || token == self.eot_token {
-                        continue;
-                    }
-                    // The no_timestamp_token is the last before the timestamp ones.
-                    if token > self.no_timestamps_token {
-                        let timestamp_s = (token - self.no_timestamps_token + 1) as f32 / 50.;
-                        if !tokens_to_decode.is_empty() {
-                            let text = self.tokenizer.decode(&tokens_to_decode, true).unwrap();
-                            println!("  {:.1}s-{:.1}s: {}", prev_timestamp_s, timestamp_s, text);
-                            tokens_to_decode.clear()
-                        }
-                        prev_timestamp_s = timestamp_s;
-                    } else {
-                        tokens_to_decode.push(token)
-                    }
-                }
-                if !tokens_to_decode.is_empty() {
-                    let text = self.tokenizer.decode(&tokens_to_decode, true).unwrap();
-                    if !text.is_empty() {
-                        println!("  {:.1}s-...: {}", prev_timestamp_s, text);
-                    }
-                    tokens_to_decode.clear()
-                }
-            } else {
-                debug!(
-                    "{:.1}s -- {:.1}s: {}",
-                    segment.start,
-                    segment.start + segment.duration,
-                    segment.dr.text,
-                )
-            }
             segments.push(segment)
         }
         Ok(segments)
@@ -407,7 +367,6 @@ impl AudioGeneratorPipeline {
         let avg_logprob = sum_logprob / tokens.len() as f64;
 
         Ok(DecodingResult {
-            tokens,
             text,
             avg_logprob,
             no_speech_prob,
@@ -448,7 +407,6 @@ pub struct Segment {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DecodingResult {
-    tokens: Vec<u32>,
     text: String,
     avg_logprob: f64,
     no_speech_prob: f64,

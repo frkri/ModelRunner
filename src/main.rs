@@ -214,7 +214,7 @@ async fn handle_transcribe_request(
     let file_bytes = opt_file_bytes.unwrap().to_vec().into_boxed_slice();
     let request = opt_request.as_ref().unwrap();
 
-    match request.model.as_str() {
+    match request.model.to_lowercase().as_str() {
         "whisper" => Ok((
             StatusCode::OK,
             Json(

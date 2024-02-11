@@ -1,7 +1,6 @@
 use anyhow::{Error, Result};
 use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
-use log::debug;
 use rand::SeedableRng;
 
 use crate::models::model::ModelBase;
@@ -63,7 +62,6 @@ impl TranscribeHandler for WhisperModel {
         let output = self
             .generator_pipeline
             .transcribe(input, language_token.as_str())?;
-        debug!("Transcription: {:?}", output);
 
         Ok(TranscribeResponse {
             output,
