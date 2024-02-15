@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::{Json, Router};
 use candle_transformers::models::mixformer;
 use clap::Parser;
@@ -14,7 +14,7 @@ use tokio::net::TcpListener;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::models::model::{ModelBase, ModelDomain, TextTask};
+use crate::models::model::{AudioTask, ModelBase, ModelDomain, TextTask};
 use crate::models::phi2::{Phi2Model, Phi2ModelConfig};
 use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
@@ -107,8 +107,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // TODO act on request cancellation
     let text_router = Router::new()
-        .route("/raw", get(handle_raw_request))
-        .route("/instruct", get(handle_instruct_request));
+        .route("/raw", post(handle_raw_request))
+        .route("/instruct", post(handle_instruct_request));
 
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
