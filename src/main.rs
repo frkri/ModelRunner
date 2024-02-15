@@ -1,8 +1,4 @@
-extern crate core;
-
-use std::io::Write;
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -33,7 +29,7 @@ mod models;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to the configuration file
-    #[arg(short, long, default_value = "ModelRunner.toml")]
+    #[arg(short, long, env, default_value = "ModelRunner.toml")]
     config_path: String,
 
     /// Configuration options
@@ -93,12 +89,21 @@ async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
 
     let args = Args::parse();
-    let config = Config::from_toml(&args.config_path)
-        .context(format!(
-            "Failed to load config from file {}",
-            &args.config_path
-        ))?
-        .merge(args.opt_config);
+    let config = match Config::from_toml(&args.config_path) {
+        Ok(conf) => conf.merge(args.opt_config),
+        Err(err) => {
+            if args.config_path == "ModelRunner.toml" {
+                Config::default().merge(args.opt_config)
+            } else {
+                exit_err!(
+                    1,
+                    "Failed to read configuration file {} with error: {}",
+                    args.config_path,
+                    err
+                );
+            }
+        }
+    };
 
     // TODO act on request cancellation
     let text_router = Router::new()
@@ -233,3 +238,25 @@ async fn handle_transcribe_request(
 // As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
 static VALID_WAV_MIME_TYPES: [&str; 4] =
     ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
+
+#[macro_export]
+macro_rules! exit_err {
+    ($msg:expr) => {
+        {
+            error!($($msg)*);
+            std::process::exit(1);
+        }
+    };
+    ($code:expr, $msg:expr) => {
+        {
+            error!($($arg)*);
+            std::process::exit($code);
+        }
+    };
+    ($code:expr, $fmt:expr $(, $arg:expr)*) => {
+        {
+            error!($fmt $(, $arg)*);
+            std::process::exit($code);
+        }
+    };
+}

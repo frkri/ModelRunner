@@ -5,11 +5,11 @@ use serde::Deserialize;
 #[derive(ClapSerde, Deserialize, Debug)]
 pub struct Config {
     /// The address the listener binds to
-    #[arg(short, long)]
+    #[arg(short, long, env, default_value = "0.0.0.0")]
     pub(crate) address: String,
 
     /// The port the listener binds to
-    #[arg(short, long)]
+    #[arg(short, long, env, default_value = "25566")]
     pub(crate) port: u16,
 }
 
