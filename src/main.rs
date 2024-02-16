@@ -65,14 +65,7 @@ lazy_static! {
         ModelBase {
             name: "Candle Whisper".into(),
             license: "MIT".into(),
-            domain: ModelDomain::Text(vec![
-                TextTask::Chat,
-                TextTask::Extract,
-                TextTask::Instruct,
-                TextTask::Sentiment,
-                TextTask::Translate,
-                TextTask::Identify,
-            ]),
+            domain: ModelDomain::Audio(AudioTask::Transcribe),
             repo_id: "lmz/candle-whisper".into(),
             repo_revision: "main".into(),
         },
