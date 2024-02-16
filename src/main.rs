@@ -30,7 +30,7 @@ mod models;
 struct Args {
     /// Path to the configuration file
     #[arg(short, long, env, default_value = "ModelRunner.toml")]
-    config_path: String,
+    config_file: String,
 
     /// Configuration options
     #[command(flatten)]
@@ -89,16 +89,16 @@ async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
 
     let args = Args::parse();
-    let config = match Config::from_toml(&args.config_path) {
+    let config = match Config::from_toml(&args.config_file) {
         Ok(conf) => conf.merge(args.opt_config),
         Err(err) => {
-            if args.config_path == "ModelRunner.toml" {
+            if args.config_file == "ModelRunner.toml" {
                 Config::default().merge(args.opt_config)
             } else {
                 exit_err!(
                     1,
                     "Failed to read configuration file {} with error: {}",
-                    args.config_path,
+                    args.config_file,
                     err
                 );
             }
