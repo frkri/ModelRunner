@@ -3,5 +3,5 @@ port = 25566
 
 # Optional: If you want to use TLS, you can specify the certificate and private key here. If you don't want TLS, you can remove this section.
 [tls]
-certificate = "/path/to/your/certificate"
-private-key = "/path/to/your/private/key"
+certificate = "./certs/testdomain.cert"
+private-key = "./certs/testdomain.key"
