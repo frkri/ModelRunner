@@ -63,6 +63,7 @@ lazy_static! {
         mixformer::Config::puffin_phi_v2(),
         Phi2ModelConfig::default(),
     )
+    .context("Failed to create Phi2 model")
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
@@ -78,6 +79,7 @@ lazy_static! {
         "model-tiny-q4k.gguf".into(),
         "melfilters.bytes".into(),
     )
+    .context("Failed to create Whisper model")
     .unwrap();
 }
 
@@ -132,7 +134,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     match (config.tls.certificate, config.tls.private_key) {
         (Some(certificate), Some(private_key)) => {
-            let tls_config = RustlsConfig::from_pem_file(certificate, private_key).await?;
+            let tls_config = RustlsConfig::from_pem_file(certificate, private_key)
+                .await
+                .context("Failed to create TLS configuration")?;
             info!("TLS support for HTTPS enabled");
             axum_server::bind_rustls(addr, tls_config)
                 .handle(shutdown_handle)

@@ -13,7 +13,6 @@ pub struct Config {
     pub port: u16,
 
     /// The TLS configuration
-    #[serde(default)]
     #[command(flatten)]
     pub tls: <TlsConfig as ClapSerde>::Opt,
 }
