@@ -1,15 +1,19 @@
-use anyhow::Result;
+use std::net::SocketAddr;
+use std::time::Duration;
+
+use anyhow::{Context, Result};
 use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
+use axum_server::tls_rustls::RustlsConfig;
+use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
-use tokio::net::TcpListener;
 
 use crate::config::Config;
 use crate::error::ModelRunnerError;
@@ -98,7 +102,6 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     };
 
-    // TODO act on request cancellation
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
         .route("/instruct", post(handle_instruct_request));
@@ -112,8 +115,10 @@ async fn main() -> Result<(), anyhow::Error> {
         .nest("/text", text_router)
         .nest("/audio", audio_router);
 
-    let listener = TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
-    info!("Listening on {}", listener.local_addr().unwrap());
+    let addr = format!("{}:{}", config.address, config.port)
+        .parse::<SocketAddr>()
+        .context("Failed to create socket from address and port")?;
+    info!("Listening on {}", addr);
     info!(
         "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
         candle_core::utils::with_avx(),
@@ -122,16 +127,39 @@ async fn main() -> Result<(), anyhow::Error> {
         candle_core::utils::with_f16c()
     );
 
-    axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    let shutdown_handle = Handle::new();
+    tokio::spawn(shutdown_handler(shutdown_handle.clone()));
+
+    match (config.tls.certificate, config.tls.private_key) {
+        (Some(certificate), Some(private_key)) => {
+            let tls_config = RustlsConfig::from_pem_file(certificate, private_key).await?;
+            info!("TLS support for HTTPS enabled");
+            axum_server::bind_rustls(addr, tls_config)
+                .handle(shutdown_handle)
+                .serve(router.into_make_service())
+                .await?;
+        }
+        (None, None) => {
+            axum_server::bind(addr)
+                .handle(shutdown_handle)
+                .serve(router.into_make_service())
+                .await?
+        }
+        _ => exit_err!(
+            1,
+            "Both certificate and private key must be provided to enable TLS support."
+        ),
+    };
+
     Ok(())
 }
 
-// TODO set timeout for shutdown signal
-async fn shutdown_signal() {
+async fn shutdown_handler(handle: Handle) {
     match tokio::signal::ctrl_c().await {
-        Ok(()) => info!("Shutting down..."),
+        Ok(()) => {
+            info!("Received shutdown signal");
+            handle.graceful_shutdown(Some(Duration::from_secs(45)));
+        }
         Err(e) => error!("Failed to listen for shutdown signal: {}", e),
     }
 }
@@ -236,13 +264,13 @@ static VALID_WAV_MIME_TYPES: [&str; 4] =
 macro_rules! exit_err {
     ($msg:expr) => {
         {
-            error!($($msg)*);
+            error!($msg);
             std::process::exit(1);
         }
     };
     ($code:expr, $msg:expr) => {
         {
-            error!($($arg)*);
+            error!($msg);
             std::process::exit($code);
         }
     };
