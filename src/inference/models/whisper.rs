@@ -3,7 +3,7 @@ use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::SeedableRng;
 
-use crate::inference::audo_pipeline::AudioGeneratorPipeline;
+use crate::inference::audio_pipeline::AudioGeneratorPipeline;
 use crate::inference::models::model::ModelBase;
 use crate::inference::task::transcribe::{TranscribeHandler, TranscribeResponse};
 

@@ -1,7 +1,7 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::inference::audo_pipeline::Segment;
+use crate::inference::audio_pipeline::Segment;
 
 #[derive(Deserialize, Debug)]
 pub struct TranscribeRequest {
