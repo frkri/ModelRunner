@@ -6,10 +6,10 @@ use hf_hub::{Repo, RepoType};
 use rand::random;
 use serde::Deserialize;
 
-use crate::models::model::ModelBase;
-use crate::models::runner::TextGeneratorPipeline;
-use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
-use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::inference::text_pipeline::TextGeneratorPipeline;
+use crate::ModelBase;
 
 pub struct Phi2Model {
     generator_pipeline: TextGeneratorPipeline,

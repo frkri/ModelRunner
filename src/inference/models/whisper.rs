@@ -3,9 +3,9 @@ use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::SeedableRng;
 
-use crate::models::model::ModelBase;
-use crate::models::runner::AudioGeneratorPipeline;
-use crate::models::task::transcribe::{TranscribeHandler, TranscribeResponse};
+use crate::inference::audo_pipeline::AudioGeneratorPipeline;
+use crate::inference::models::model::ModelBase;
+use crate::inference::task::transcribe::{TranscribeHandler, TranscribeResponse};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/whisper/main.rs
 pub struct WhisperModel {
@@ -57,11 +57,9 @@ impl TranscribeHandler for WhisperModel {
     fn run_transcribe(
         &mut self,
         input: Box<[u8]>,
-        language_token: &String,
+        language_token: &str,
     ) -> Result<TranscribeResponse, Error> {
-        let output = self
-            .generator_pipeline
-            .transcribe(input, language_token.as_str())?;
+        let output = self.generator_pipeline.transcribe(input, language_token)?;
 
         Ok(TranscribeResponse {
             output,

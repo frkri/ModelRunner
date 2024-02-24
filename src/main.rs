@@ -18,16 +18,22 @@ use log::{error, info};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::models::model::{AudioTask, ModelBase, ModelDomain, TextTask};
-use crate::models::phi2::{Phi2Model, Phi2ModelConfig};
-use crate::models::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
-use crate::models::task::raw::{RawHandler, RawRequest, RawResponse};
-use crate::models::task::transcribe::{TranscribeHandler, TranscribeRequest, TranscribeResponse};
-use crate::models::whisper::WhisperModel;
+use crate::inference::models::model::AudioTask;
+use crate::inference::models::model::ModelBase;
+use crate::inference::models::model::ModelDomain;
+use crate::inference::models::model::TextTask;
+use crate::inference::models::phi2::Phi2Model;
+use crate::inference::models::phi2::Phi2ModelConfig;
+use crate::inference::models::whisper::WhisperModel;
+use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
+use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
+use crate::inference::task::transcribe::{
+    TranscribeHandler, TranscribeRequest, TranscribeResponse,
+};
 
 mod config;
 mod error;
-mod models;
+mod inference;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -260,6 +266,7 @@ async fn handle_transcribe_request(
         ),
     }
 }
+
 // As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
 static VALID_WAV_MIME_TYPES: [&str; 4] =
     ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
