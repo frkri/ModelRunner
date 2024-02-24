@@ -12,21 +12,21 @@ strip = true
 lto = true
 
 [dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 log = "0.4.20"
-env_logger = "0.11.1"
+env_logger = "0.11.2"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
 axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
-serde = { version = "1.0.196", features = ["serde_derive"] }
-serde_json = "1.0.113"
+serde = { version = "1.0.197", features = ["serde_derive"] }
+serde_json = "1.0.114"
 toml = "0.8.10"
-clap = { version = "4.4.18", features = ["derive", "color", "env"] }
+clap = { version = "4.5.1", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
 candle-transformers = "0.3.3"
-tokenizers = "0.15.1"
+tokenizers = "0.15.2"
 hf-hub = "0.3.2"
 candle-core = "0.3.3"
 candle-nn = "0.3.3"
