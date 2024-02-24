@@ -53,14 +53,7 @@ lazy_static! {
         ModelBase {
             name: "Candle Phi2".into(),
             license: "MIT".into(),
-            domain: ModelDomain::Text(vec![
-                TextTask::Chat,
-                TextTask::Extract,
-                TextTask::Instruct,
-                TextTask::Sentiment,
-                TextTask::Translate,
-                TextTask::Identify,
-            ]),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
             repo_id: "lmz/candle-quantized-phi".into(),
             repo_revision: "main".into(),
         },
@@ -87,6 +80,20 @@ lazy_static! {
     )
     .context("Failed to create Whisper model")
     .unwrap();
+    static ref MISTRAL7B_MODEL: Mistral7BModel = Mistral7BModel::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Candle Mistral 7B".into(),
+            license: "Apache-2.0".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
+            repo_id: "lmz/candle-mistral".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-mistral-7b.json".into(),
+        "tokenizer.json".into(),
+        mixformer::Config::mistral_7b(),
+        Mistral7BModelConfig::default(),
+    );
 }
 
 #[tokio::main]
