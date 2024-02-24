@@ -1,0 +1,15 @@
+POST http://localhost:25566/text/raw
+content-type: application/json
+
+{
+  "model": "phi2",
+  "input": "USER: Give me a detailed report about tomorrows sunny weather. ASSISTANT:",
+  "max_length": 100,
+  "model_config": {
+    "temperature": 0.6,
+    "seed": 12345,
+    "top_p": 0.8,
+    "repeat_penalty": 0.8,
+    "repeat_context_size": 64
+  }
+}

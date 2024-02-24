@@ -1,0 +1,8 @@
+GET http://localhost:25566/text/instruct
+content-type: application/json
+
+{
+  "model": "phi2",
+  "input": "Give me in percent how likely is this email to be a phishing email. The email title is 'You have won a prize! Click here to claim it!'. What is the probability that this email is a phishing email?",
+  "max_length": 100
+}

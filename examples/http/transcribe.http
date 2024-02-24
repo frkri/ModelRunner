@@ -5,11 +5,11 @@ Content-Type: multipart/form-data; boundary=bounds
 Content-Disposition: form-data; name="request_content"
 Content-Type: application/json
 
-{"model": "whisper", "language": "hr"}
+{"model": "whisper", "language": "en"}
 --bounds
 Content-Disposition: form-data; name="audio_content" filename="wavfile.wav"
 Content-Type: audio/wav
 
-< ./MyWAVFile.wav
+< ./samples_jfk.wav
 --bounds--
 
