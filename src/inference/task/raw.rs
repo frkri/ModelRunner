@@ -1,14 +1,14 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::inference::models::phi2::Phi2ModelConfig;
+use crate::GeneralModelConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct RawRequest {
     pub model: String,
     pub input: String,
     pub max_length: usize,
-    pub model_config: Phi2ModelConfig,
+    pub model_config: GeneralModelConfig,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

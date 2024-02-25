@@ -1,3 +1,4 @@
+### Phi 2
 POST http://localhost:25566/text/raw
 content-type: application/json
 
@@ -10,6 +11,23 @@ content-type: application/json
     "seed": 12345,
     "top_p": 0.8,
     "repeat_penalty": 0.8,
+    "repeat_context_size": 64
+  }
+}
+
+### Mistral 7B
+POST http://localhost:25566/text/raw
+content-type: application/json
+
+{
+  "model": "mistral7b",
+  "input": "<s>[INST] Give me a detailed report about tomorrows sunny weather. [/INST]",
+  "max_length": 100,
+  "model_config": {
+    "temperature": 0.2,
+    "seed": 12345,
+    "top_p": 0.6,
+    "repeat_penalty": 1.1,
     "repeat_context_size": 64
   }
 }

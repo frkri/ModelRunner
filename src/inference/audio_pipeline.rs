@@ -36,8 +36,8 @@ pub struct AudioGeneratorPipeline {
     seed: rand::rngs::StdRng,
 }
 
-impl AudioGeneratorPipeline {
-    pub(crate) fn clone(&self) -> AudioGeneratorPipeline {
+impl Clone for AudioGeneratorPipeline {
+    fn clone(&self) -> AudioGeneratorPipeline {
         AudioGeneratorPipeline {
             model: self.model.clone(),
             tokenizer: self.tokenizer.clone(),

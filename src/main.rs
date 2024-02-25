@@ -18,12 +18,13 @@ use log::{error, info};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
+use crate::inference::general::GeneralModelConfig;
+use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
 use crate::inference::models::model::ModelBase;
 use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
 use crate::inference::models::phi2::Phi2Model;
-use crate::inference::models::phi2::Phi2ModelConfig;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
@@ -51,23 +52,23 @@ lazy_static! {
     static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
         Api::new().expect("Failed to create API"),
         ModelBase {
-            name: "Candle Phi2".into(),
+            name: "Quantized Phi2".into(),
             license: "MIT".into(),
-            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "lmz/candle-quantized-phi".into(),
             repo_revision: "main".into(),
         },
         "tokenizer-puffin-phi-v2.json".into(),
         "model-puffin-phi-v2-q80.gguf".into(),
         mixformer::Config::puffin_phi_v2(),
-        Phi2ModelConfig::default(),
+        GeneralModelConfig::default(),
     )
-    .context("Failed to create Phi2 model")
+    .map_err(|e| error!("Failed! to create Phi2 model: {}", e))
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
         ModelBase {
-            name: "Candle Whisper".into(),
+            name: "Quantized Whisper".into(),
             license: "MIT".into(),
             domain: ModelDomain::Audio(AudioTask::Transcribe),
             repo_id: "lmz/candle-whisper".into(),
@@ -78,26 +79,27 @@ lazy_static! {
         "model-tiny-q4k.gguf".into(),
         "melfilters.bytes".into(),
     )
-    .context("Failed to create Whisper model")
+    .map_err(|e| error!("Failed! to create Whisper model: {}", e))
     .unwrap();
-    static ref MISTRAL7B_MODEL: Mistral7BModel = Mistral7BModel::new(
+    static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
         Api::new().expect("Failed to create API"),
         ModelBase {
-            name: "Candle Mistral 7B".into(),
-            license: "Apache-2.0".into(),
+            name: "Quantized Mistral7B".into(),
+            license: "Apache 2.0".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
-            repo_id: "lmz/candle-mistral".into(),
+            repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF".into(),
             repo_revision: "main".into(),
         },
-        "tokenizer-mistral-7b.json".into(),
         "tokenizer.json".into(),
-        mixformer::Config::mistral_7b(),
-        Mistral7BModelConfig::default(),
-    );
+        "mistral-7b-instruct-v0.2.Q4_K_S.gguf".into(),
+        GeneralModelConfig::default(),
+    )
+    .map_err(|e| error!("Failed to create Mistral 7B model: {}", e))
+    .unwrap();
 }
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<()> {
     env_logger::init();
 
     let args = Args::parse();
@@ -187,6 +189,10 @@ async fn handle_raw_request(
 ) -> ModelResult<(StatusCode, Json<RawResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_raw(req)?))),
+        "mistral7b" => Ok((
+            StatusCode::OK,
+            Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
+        )),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
@@ -197,6 +203,10 @@ async fn handle_instruct_request(
 ) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_instruct(req)?))),
+        "mistral7b" => Ok((
+            StatusCode::OK,
+            Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_instruct(req)?),
+        )),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
