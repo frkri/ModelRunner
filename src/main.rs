@@ -11,6 +11,7 @@ use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
+use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -100,7 +101,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let args = Args::parse();
     let config = match Config::from_toml(&args.config_file) {
