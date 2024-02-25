@@ -5,6 +5,10 @@ COPY . /ModelRunner
 RUN cargo build --release
 
 FROM gcr.io/distroless/cc-debian12 as runtime
+LABEL org.opencontainers.image.source=https://github.com/frkri/ModelRunner
+LABEL org.opencontainers.image.title="ModelRunner"
+LABEL org.opencontainers.image.license="MIT"
+
 WORKDIR /ModelRunner
 COPY --from=builder /ModelRunner/target/release/model_runner /ModelRunner/model_runner
 # Required for the whisper model
