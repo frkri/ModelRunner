@@ -185,7 +185,7 @@ impl AudioGeneratorPipeline {
 
     fn decode(&mut self, mel: &Tensor, t: f64, language_token: u32) -> Result<DecodingResult> {
         let model = &mut self.model;
-        let audio_features = model.encoder.forward(&mel, true)?;
+        let audio_features = model.encoder.forward(mel, true)?;
         debug!("audio features: {:?}", audio_features.dims());
 
         let sample_len = model.config.max_target_positions / 2;

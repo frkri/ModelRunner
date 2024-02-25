@@ -65,6 +65,7 @@ impl Clone for TextGeneratorPipeline {
 }
 
 impl TextGeneratorPipeline {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_phi(
         repo: ApiRepo,
         config: mixformer::Config,
@@ -99,6 +100,7 @@ impl TextGeneratorPipeline {
         Ok(pipeline)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf(
         repo: ApiRepo,
         tokenizer_file: PathBuf,
