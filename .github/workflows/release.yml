@@ -37,6 +37,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flags: "" # No optimizations
+            name: ""
+          - flags: "-C target-feature=+avx,+avx2"
+            name: "-avx"
+          - flags: "-C target-feature=+f16c"
+            name: "-f16c"
+          - flags: "-C target-feature=+avx,+avx2,+f16c"
+            name: "-avx-f16c"
 
     steps:
       - name: Checkout repository
@@ -64,5 +76,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}${{ matrix.name }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            rust_flags=${{ matrix.flags }}

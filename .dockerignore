@@ -2,4 +2,6 @@
 .idea/
 .github/
 /target
+/examples
 .gitignore
+.cargo

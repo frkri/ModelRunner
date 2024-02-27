@@ -1,11 +1,16 @@
 # Specifically use Debian 12 due to the runtime image running also running on Debian 12
 FROM rust:1.76.0-bookworm as builder
+# Compile without any optimizations by default
+ARG rust_flags=""
+
 WORKDIR /ModelRunner
 COPY . /ModelRunner
+
+ENV RUSTFLAGS=${rust_flags}
 RUN cargo build --release
 
 FROM gcr.io/distroless/cc-debian12 as runtime
-LABEL org.opencontainers.image.source=https://github.com/frkri/ModelRunner
+LABEL org.opencontainers.image.source="https://github.com/frkri/ModelRunner"
 LABEL org.opencontainers.image.title="ModelRunner"
 LABEL org.opencontainers.image.license="MIT"
 
