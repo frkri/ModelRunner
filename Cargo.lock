@@ -294,12 +294,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "candle-core"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d3c6a912d574b4ca6e14ee816a1139ee0d15b75a48291f153dd16f6c643130e"
+dependencies = [
+ "byteorder",
+ "gemm",
+ "half",
+ "memmap2",
+ "num-traits",
+ "num_cpus",
+ "rand",
+ "rand_distr",
+ "rayon",
+ "safetensors",
+ "thiserror",
+ "yoke",
+ "zip",
+]
+
+[[package]]
 name = "candle-nn"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ddce8312032760a6791d6adc9c56dc54fd7c1be38d85dcc4862f1c75228bbc7"
 dependencies = [
- "candle-core",
+ "candle-core 0.3.3",
  "half",
  "num-traits",
  "rayon",
@@ -315,7 +336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68834a0cacb7e002d1f4abfe26a7cd1237e2ba342fddcf2e30913c4edb96409d"
 dependencies = [
  "byteorder",
- "candle-core",
+ "candle-core 0.3.3",
  "candle-nn",
  "num-traits",
  "rand",
@@ -1222,7 +1243,7 @@ dependencies = [
  "axum-macros",
  "axum-server",
  "byteorder",
- "candle-core",
+ "candle-core 0.4.0",
  "candle-nn",
  "candle-transformers",
  "clap",
