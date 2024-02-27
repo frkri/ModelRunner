@@ -274,27 +274,6 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "candle-core"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6db8659ea87ee8197d2fc627348916cce0561330ee7ae3874e771691d3cecb2f"
-dependencies = [
- "byteorder",
- "gemm",
- "half",
- "memmap2",
- "num-traits",
- "num_cpus",
- "rand",
- "rand_distr",
- "rayon",
- "safetensors",
- "thiserror",
- "yoke",
- "zip",
-]
-
-[[package]]
-name = "candle-core"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d3c6a912d574b4ca6e14ee816a1139ee0d15b75a48291f153dd16f6c643130e"
@@ -316,26 +295,11 @@ dependencies = [
 
 [[package]]
 name = "candle-nn"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ddce8312032760a6791d6adc9c56dc54fd7c1be38d85dcc4862f1c75228bbc7"
-dependencies = [
- "candle-core 0.3.3",
- "half",
- "num-traits",
- "rayon",
- "safetensors",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "candle-nn"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fd8f228c993467be5295a9759fc64d79e9ff9ea9080d7fc1cdf8d44b899082a"
 dependencies = [
- "candle-core 0.4.0",
+ "candle-core",
  "half",
  "num-traits",
  "rayon",
@@ -346,13 +310,13 @@ dependencies = [
 
 [[package]]
 name = "candle-transformers"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68834a0cacb7e002d1f4abfe26a7cd1237e2ba342fddcf2e30913c4edb96409d"
+checksum = "f76c29230b2dffa216e174512bf00f621eb1f4ba77718593f183828aad427d44"
 dependencies = [
  "byteorder",
- "candle-core 0.3.3",
- "candle-nn 0.3.3",
+ "candle-core",
+ "candle-nn",
  "num-traits",
  "rand",
  "rayon",
@@ -360,7 +324,6 @@ dependencies = [
  "serde_json",
  "serde_plain",
  "tracing",
- "wav",
 ]
 
 [[package]]
@@ -1258,8 +1221,8 @@ dependencies = [
  "axum-macros",
  "axum-server",
  "byteorder",
- "candle-core 0.4.0",
- "candle-nn 0.4.0",
+ "candle-core",
+ "candle-nn",
  "candle-transformers",
  "clap",
  "clap-serde-derive",
@@ -1692,12 +1655,6 @@ name = "regex-syntax"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
-
-[[package]]
-name = "riff"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9b1a3d5f46d53f4a3478e2be4a5a5ce5108ea58b100dcd139830eae7f79a3a1"
 
 [[package]]
 name = "ring"
@@ -2552,15 +2509,6 @@ name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
-
-[[package]]
-name = "wav"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a65e199c799848b4f997072aa4d673c034f80f40191f97fe2f0a23f410be1609"
-dependencies = [
- "riff",
-]
 
 [[package]]
 name = "webpki-roots"
