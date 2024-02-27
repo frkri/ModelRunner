@@ -330,6 +330,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "candle-nn"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fd8f228c993467be5295a9759fc64d79e9ff9ea9080d7fc1cdf8d44b899082a"
+dependencies = [
+ "candle-core 0.4.0",
+ "half",
+ "num-traits",
+ "rayon",
+ "safetensors",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "candle-transformers"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,7 +352,7 @@ checksum = "68834a0cacb7e002d1f4abfe26a7cd1237e2ba342fddcf2e30913c4edb96409d"
 dependencies = [
  "byteorder",
  "candle-core 0.3.3",
- "candle-nn",
+ "candle-nn 0.3.3",
  "num-traits",
  "rand",
  "rayon",
@@ -1244,7 +1259,7 @@ dependencies = [
  "axum-server",
  "byteorder",
  "candle-core 0.4.0",
- "candle-nn",
+ "candle-nn 0.4.0",
  "candle-transformers",
  "clap",
  "clap-serde-derive",
