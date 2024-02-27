@@ -3,7 +3,8 @@ name: model_runner_service
 
 services:
   model_runner:
-    image: ghcr.io/frkri/model-runner:latest
+    # Find other image types under: https://github.com/frkri/ModelRunner/pkgs/container/modelrunner
+    image: ghcr.io/frkri/modelrunner:latest
     container_name: model_runner
     build:
       context: .
