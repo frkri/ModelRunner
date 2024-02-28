@@ -25,6 +25,7 @@ use crate::inference::models::model::AudioTask;
 use crate::inference::models::model::ModelBase;
 use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
+use crate::inference::models::openhermes::OpenHermesModel;
 use crate::inference::models::phi2::Phi2Model;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
@@ -64,7 +65,7 @@ lazy_static! {
         mixformer::Config::puffin_phi_v2(),
         GeneralModelConfig::default(),
     )
-    .map_err(|e| error!("Failed! to create Phi2 model: {}", e))
+    .map_err(|e| error!("Failed to create Phi2 model: {}", e))
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
@@ -80,7 +81,7 @@ lazy_static! {
         "model-tiny-q4k.gguf".into(),
         "melfilters.bytes".into(),
     )
-    .map_err(|e| error!("Failed! to create Whisper model: {}", e))
+    .map_err(|e| error!("Failed to create Whisper model: {}", e))
     .unwrap();
     static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
         Api::new().expect("Failed to create API"),
@@ -95,7 +96,22 @@ lazy_static! {
         "mistral-7b-instruct-v0.2.Q4_K_S.gguf".into(),
         GeneralModelConfig::default(),
     )
-    .map_err(|e| error!("Failed to create Mistral 7B model: {}", e))
+    .map_err(|e| error!("Failed to create Mistral7B model: {}", e))
+    .unwrap();
+    static ref OPENHERMES_MODEL: OpenHermesModel = OpenHermesModel::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Quantized OpenHermes-2.5 Mistral7B".into(),
+            license: "Apache 2.0".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
+            repo_id: "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer.json".into(),
+        "openhermes-2.5-mistral-7b.Q4_K_M.gguf".into(),
+        GeneralModelConfig::default(),
+    )
+    .map_err(|e| error!("Failed to create OpenHermes model: {}", e))
     .unwrap();
 }
 
@@ -194,6 +210,7 @@ async fn handle_raw_request(
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
         )),
+        "openhermes" => Ok((StatusCode::OK, Json(OPENHERMES_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
@@ -207,6 +224,10 @@ async fn handle_instruct_request(
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_instruct(req)?),
+        )),
+        "openhermes" => Ok((
+            StatusCode::OK,
+            Json(OPENHERMES_MODEL.clone().run_instruct(req)?),
         )),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
