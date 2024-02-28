@@ -19,7 +19,7 @@ use log::{error, info};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::inference::general::GeneralModelConfig;
+use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
 use crate::inference::models::model::ModelBase;
