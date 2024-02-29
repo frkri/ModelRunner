@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -91,9 +93,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-        tags: |
-          type=raw,value=latest,suffix=${{ matrix.suffix }}
-          type=semver,pattern={{version}},suffix=${{ matrix.suffix }}
+          tags: |
+            type=raw,value=latest,suffix=${{ matrix.suffix }}
+            type=semver,pattern={{version}},suffix=${{ matrix.suffix }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
