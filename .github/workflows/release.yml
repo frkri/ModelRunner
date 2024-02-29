@@ -6,9 +6,37 @@ on:
       - created
 
 jobs:
+  bump-version:
+    name: Bump version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Bump version in Cargo.toml and Cargo.lock
+        # TODO: This is very wasteful
+        run: |
+          TAG_VERSION=v1.0.0
+          echo "Bumping version to ${TAG_VERSION:1}"
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION:1}\"/" Cargo.toml
+          cargo fetch
+          cargo generate-lockfile --offline
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Bump version to ${{ github.event.release.tag_name }}"
+          file_pattern: "Cargo.toml Cargo.lock"
+
   release:
     name: Release assets-${{ matrix.target }}
     runs-on: ubuntu-latest
+    needs: bump-version
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +62,7 @@ jobs:
   image:
     name: Publish docker image${{ matrix.suffix }}
     runs-on: ubuntu-latest
+    needs: bump-version
     permissions:
       contents: read
       packages: write
