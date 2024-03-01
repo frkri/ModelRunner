@@ -26,6 +26,7 @@ use crate::inference::models::model::ModelBase;
 use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
 use crate::inference::models::phi2::Phi2Model;
+use crate::inference::models::stablelm2::StableLm2Model;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
@@ -96,6 +97,21 @@ lazy_static! {
         GeneralModelConfig::default(),
     )
     .map_err(|e| error!("Failed to create Mistral 7B model: {}", e))
+    .unwrap();
+    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Quantized StableLM 2 Zephyr 1.6B".into(),
+            license: "StabilityAI Non-Commercial Research Community License".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "lmz/candle-stablelm".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-gpt4.json".into(),
+        "stablelm-2-zephyr-1_6b-q4k.gguf".into(),
+        GeneralModelConfig::default(),
+    )
+    .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
     .unwrap();
 }
 
@@ -194,6 +210,7 @@ async fn handle_raw_request(
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
         )),
+        "stablelm2" => Ok((StatusCode::OK, Json(STABLELM2_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
@@ -207,6 +224,10 @@ async fn handle_instruct_request(
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_instruct(req)?),
+        )),
+        "stablelm2" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_MODEL.clone().run_instruct(req)?),
         )),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }

@@ -7,6 +7,8 @@ use candle_transformers::generation::LogitsProcessor;
 use candle_transformers::models::mixformer;
 use candle_transformers::models::quantized_llama::ModelWeights;
 use candle_transformers::models::quantized_mixformer::MixFormerSequentialForCausalLM as Phi2;
+use candle_transformers::models::quantized_stable_lm::Model as QStableLM;
+use candle_transformers::models::stable_lm::Config as StableLmConfig;
 use candle_transformers::quantized_var_builder::VarBuilder;
 use hf_hub::api::sync::ApiRepo;
 use rand::random;
@@ -31,8 +33,14 @@ pub struct TextGeneratorPipeline {
 }
 
 pub enum Model {
-    Phi(Phi2),
-    Mistral(ModelWeights),
+    Phi(Option<Phi2>),
+    Mistral(Option<ModelWeights>),
+    StableLm(Option<QStableLM>),
+}
+
+pub enum ModelConfig {
+    Phi(mixformer::Config),
+    StableLm(StableLmConfig),
 }
 
 impl Clone for Model {
@@ -40,6 +48,7 @@ impl Clone for Model {
         match self {
             Model::Phi(model) => Model::Phi(model.clone()),
             Model::Mistral(model) => Model::Mistral(model.clone()),
+            Model::StableLm(model) => Model::StableLm(model.clone()),
         }
     }
 }
@@ -66,9 +75,10 @@ impl Clone for TextGeneratorPipeline {
 
 impl TextGeneratorPipeline {
     #[allow(clippy::too_many_arguments)]
-    pub fn with_phi(
+    pub fn with_quantized_gguf_config(
         repo: ApiRepo,
-        config: mixformer::Config,
+        model: Model,
+        config: ModelConfig,
         tokenizer_filename: &str,
         gguf_filename: &str,
         seed: Option<u64>,
@@ -82,12 +92,30 @@ impl TextGeneratorPipeline {
 
         let device = Device::Cpu;
         let vb = VarBuilder::from_gguf(gguf_file, &device)?;
-        let model = Phi2::new(&config, vb)?;
+        let model = match model {
+            Model::Phi(_) => {
+                let config = match config {
+                    ModelConfig::Phi(config) => config,
+                    _ => bail!("Invalid model config"),
+                };
+                let model = Phi2::new(&config, vb)?;
+                Model::Phi(Some(model))
+            }
+            Model::StableLm(_) => {
+                let config = match config {
+                    ModelConfig::StableLm(config) => config,
+                    _ => bail!("Invalid model config"),
+                };
+                let model = QStableLM::new(&config, vb)?;
+                Model::StableLm(Some(model))
+            }
+            _ => bail!("Invalid model"),
+        };
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
         let pipeline = TextGeneratorPipeline {
-            model: Model::Phi(model),
-            device: Device::Cpu,
+            model,
+            device,
             tokenizer,
             logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
             repeat_penalty,
@@ -121,7 +149,7 @@ impl TextGeneratorPipeline {
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
         let pipeline = TextGeneratorPipeline {
-            model: Model::Mistral(model),
+            model: Model::Mistral(Some(model)),
             device: Device::Cpu,
             tokenizer,
             logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
@@ -135,9 +163,9 @@ impl TextGeneratorPipeline {
         Ok(pipeline)
     }
     pub fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64)> {
-        if let Model::Phi(model) = &mut self.model {
-            model.clear_kv_cache()
-        };
+        if let Model::Phi(Some(ref mut m)) = self.model {
+            m.clear_kv_cache()
+        }
         self.tokenizer.clear();
         let mut tokens = self
             .tokenizer
@@ -151,7 +179,11 @@ impl TextGeneratorPipeline {
         }
 
         let eos_token = match self.model {
-            Model::Phi(_) => match self
+            Model::Mistral(_) => match self.tokenizer.tokenizer().get_vocab(true).get("</s>") {
+                Some(token) => *token,
+                None => bail!("Cannot find the </s> token"),
+            },
+            _ => match self
                 .tokenizer
                 .tokenizer()
                 .get_vocab(true)
@@ -159,10 +191,6 @@ impl TextGeneratorPipeline {
             {
                 Some(token) => *token,
                 None => bail!("Cannot find the endoftext token"),
-            },
-            Model::Mistral(_) => match self.tokenizer.tokenizer().get_vocab(true).get("</s>") {
-                Some(token) => *token,
-                None => bail!("Cannot find the </s> token"),
             },
         };
 
@@ -173,12 +201,15 @@ impl TextGeneratorPipeline {
             let start_pos = tokens.len().saturating_sub(context_size);
             let input = Tensor::new(&tokens[start_pos..], &self.device)?.unsqueeze(0)?;
             let logits = match &mut self.model {
-                Model::Phi(model) => model.forward(&input)?,
-                Model::Mistral(model) => model.forward(&input, start_pos)?,
+                Model::Phi(Some(model)) => model.forward(&input)?,
+                Model::Mistral(Some(model)) => model.forward(&input, start_pos)?,
+                Model::StableLm(Some(model)) => model.forward(&input, start_pos)?,
+                _ => bail!("Model not initialized"),
             };
             let logits = match self.model {
                 Model::Phi(_) => logits.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::Mistral(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
+                Model::StableLm(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
             };
             let logits = if self.repeat_penalty == 1. {
                 logits
