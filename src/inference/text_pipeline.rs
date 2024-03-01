@@ -20,6 +20,7 @@ use crate::inference::token_output_stream::TokenOutputStream;
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/quantized/main.rs
+// https://github.com/huggingface/candle/tree/main/candle-examples/examples/stable-lm
 pub struct TextGeneratorPipeline {
     pub model: Model,
     pub device: Device,
