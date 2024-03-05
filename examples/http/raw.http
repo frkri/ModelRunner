@@ -31,3 +31,20 @@ content-type: application/json
     "repeat_context_size": 64
   }
 }
+
+### StableLM 2 Zephyr 1.6B
+POST http://localhost:25566/text/raw
+content-type: application/json
+
+{
+  "model": "stablelm2",
+  "input": "<|user|>\nGive me a detailed report about tomorrows sunny weather.<|endoftext|>\n<|assistant|>\n",
+  "max_length": 100,
+  "model_config": {
+    "temperature": 0.2,
+    "seed": 12345,
+    "top_p": 0.6,
+    "repeat_penalty": 1.1,
+    "repeat_context_size": 64
+  }
+}

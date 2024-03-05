@@ -1,6 +1,6 @@
 use anyhow::Result;
 use candle_transformers::generation::LogitsProcessor;
-use candle_transformers::models::mixformer;
+use candle_transformers::models::stable_lm::Config;
 use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::random;
@@ -11,25 +11,24 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::text_pipeline::{Model, ModelConfig, TextGeneratorPipeline};
 use crate::ModelBase;
 
-pub struct Phi2Model {
+pub struct StableLm2Model {
     generator_pipeline: TextGeneratorPipeline,
 }
 
-impl Clone for Phi2Model {
+impl Clone for StableLm2Model {
     fn clone(&self) -> Self {
-        Phi2Model {
+        StableLm2Model {
             generator_pipeline: self.generator_pipeline.clone(),
         }
     }
 }
 
-impl Phi2Model {
+impl StableLm2Model {
     pub fn new(
         api: Api,
         base: ModelBase,
         tokenizer_filename: String,
         gguf_filename: String,
-        phi2_config: mixformer::Config,
         general_model_config: GeneralModelConfig,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
@@ -37,11 +36,18 @@ impl Phi2Model {
             RepoType::Model,
             base.repo_revision,
         ));
+        let stablelm_repo = api.repo(Repo::with_revision(
+            "stabilityai/stablelm-2-zephyr-1_6b".into(),
+            RepoType::Model,
+            "095f80bcaa049c014925fec31d145754751899e6".into(), // TODO change later
+        ));
+        let config = std::fs::read_to_string(stablelm_repo.get("config.json")?)?;
+        let config: Config = serde_json::from_str(&config)?;
 
         let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf_config(
             repo,
-            Model::Phi(None),
-            ModelConfig::Phi(phi2_config),
+            Model::StableLm(None),
+            ModelConfig::StableLm(config),
             tokenizer_filename.as_str(),
             gguf_filename.as_str(),
             general_model_config.seed,
@@ -51,11 +57,11 @@ impl Phi2Model {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(Phi2Model { generator_pipeline })
+        Ok(StableLm2Model { generator_pipeline })
     }
 }
 
-impl RawHandler for Phi2Model {
+impl RawHandler for StableLm2Model {
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -76,9 +82,9 @@ impl RawHandler for Phi2Model {
     }
 }
 
-impl InstructHandler for Phi2Model {
+impl InstructHandler for StableLm2Model {
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
-        let prompt = format!("Instruct: {}\nOutput:", request.input);
+        let prompt = format!("<|user|>\n{}<|endoftext|>\n<|assistant|>\n", request.input);
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&prompt, request.max_length)?;
