@@ -2,10 +2,14 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use axum::extract::Request;
+use axum::extract::State;
 use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::post;
-use axum::{Json, Router};
+use axum::{middleware, Json, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use candle_transformers::models::mixformer;
@@ -15,7 +19,10 @@ use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
+use sqlx::migrate::Migrate;
+use sqlx::SqlitePool;
 
+use crate::auth::{auth_middleware, create_api_key};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
@@ -35,9 +42,11 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 
+mod auth;
 mod config;
 mod error;
 mod inference;
+mod models;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,6 +58,11 @@ struct Args {
     /// Configuration options
     #[command(flatten)]
     pub opt_config: <Config as ClapSerde>::Opt,
+}
+
+#[derive(Clone)]
+struct AppState {
+    db_pool: SqlitePool,
 }
 
 lazy_static! {
@@ -152,18 +166,27 @@ async fn main() -> Result<()> {
         }
     };
 
+    let db_pool = SqlitePool::connect(&config.sqlite_connection_options)
+        .await
+        .context("Failed to establish connection to database")?;
+    sqlx::migrate!()
+        .run(&db_pool)
+        .await
+        .context("Failed to run migrations")?;
+
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
         .route("/instruct", post(handle_instruct_request));
-
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
         .layer(DefaultBodyLimit::max(10_000_000));
 
+    let app_state = AppState { db_pool };
     let router = Router::new()
         .nest("/text", text_router)
-        .nest("/audio", audio_router);
+        .nest("/audio", audio_router)
+        .layer(middleware::from_fn_with_state(app_state, auth_middleware));
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()

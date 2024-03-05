@@ -1,8 +1,12 @@
 address = "0.0.0.0"
 port = 25566
 
-# Optional: If you want to use TLS, you can specify the certificate and private key files here.
-# If you don't want TLS, you can remove this section below completely.
+# [Optional]
+# If you want to use TLS, you can specify the certificate and private key files here or remove the section to disable TLS.
 [tls]
 certificate = "./path/to/your/cert.file"
 private-key = "./path/to/your/key.file"
+
+# [Optional]
+# Sqlite database file path. If not specified, the database will be stored in model_runner.db
+database = "sqlite://model_runner.db"
