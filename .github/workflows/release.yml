@@ -5,9 +5,33 @@ on:
     types:
       - created
 
+env:
+  TAG_VERSION: ${{ github.event.release.tag_name }}
+
 jobs:
-  release:
-    name: Release assets
+  bump-version:
+    name: Bump version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bump version in Cargo.toml and Cargo.lock
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION:1}\"/" Cargo.toml
+          awk -v tag="${TAG_VERSION:1}" '/name = "model_runner"/{getline; sub(/version = ".+"/, "name = \"model_runner\"\nversion = \"" tag "\""); print; next}1' Cargo.lock > temp && mv temp Cargo.lock
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          branch: master
+          commit_message: "Release ${{ env.TAG_VERSION }}"
+          file_pattern: "Cargo.toml Cargo.lock"
+
+  add-release-assets:
+    name: Add Release assets ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -23,6 +47,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Bump version in Cargo.toml and Cargo.lock
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION:1}\"/" Cargo.toml
+          awk -v tag="${TAG_VERSION:1}" '/name = "model_runner"/{getline; sub(/version = ".+"/, "name = \"model_runner\"\nversion = \"" tag "\""); print; next}1' Cargo.lock > temp && mv temp Cargo.lock
+
       - name: Compile and upload
         uses: rust-build/rust-build.action@v1.4.5
         env:
@@ -32,7 +61,7 @@ jobs:
           ARCHIVE_TYPES: ${{ matrix.archive }}
 
   image:
-    name: Publish docker image
+    name: Publish docker image ${{ matrix.suffix }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,17 +71,22 @@ jobs:
       matrix:
         include:
           - flags: "" # No optimizations
-            name: ""
+            suffix: "" # '-' must be appended manually
           - flags: "-C target-feature=+avx,+avx2"
-            name: "-avx"
+            suffix: "-avx"
           - flags: "-C target-feature=+f16c"
-            name: "-f16c"
+            suffix: "-f16c"
           - flags: "-C target-feature=+avx,+avx2,+f16c"
-            name: "-avx-f16c"
+            suffix: "-avx-f16c"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Bump version in Cargo.toml and Cargo.lock
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION:1}\"/" Cargo.toml
+          awk -v tag="${TAG_VERSION:1}" '/name = "model_runner"/{getline; sub(/version = ".+"/, "name = \"model_runner\"\nversion = \"" tag "\""); print; next}1' Cargo.lock > temp && mv temp Cargo.lock
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -69,6 +103,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=${{ matrix.suffix }},onlatest=true
+          tags: |
+            type=semver,pattern={{version}}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -76,7 +114,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}${{ matrix.name }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             rust_flags=${{ matrix.flags }}

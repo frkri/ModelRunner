@@ -1,5 +1,5 @@
 mod audio_pipeline;
-pub mod general;
+pub mod model_config;
 pub mod models;
 mod pcm_decode;
 pub mod task;

@@ -1,29 +1,29 @@
 use anyhow::Result;
 use candle_transformers::generation::LogitsProcessor;
+use candle_transformers::models::stable_lm::Config;
 use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::random;
 
 use crate::inference::model_config::GeneralModelConfig;
-use crate::inference::models::model::ModelBase;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
-use crate::inference::text_pipeline::TextGeneratorPipeline;
+use crate::inference::text_pipeline::{Model, ModelConfig, TextGeneratorPipeline};
+use crate::ModelBase;
 
-// Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
-pub struct Mistral7BModel {
+pub struct StableLm2Model {
     generator_pipeline: TextGeneratorPipeline,
 }
 
-impl Clone for Mistral7BModel {
+impl Clone for StableLm2Model {
     fn clone(&self) -> Self {
-        Mistral7BModel {
+        StableLm2Model {
             generator_pipeline: self.generator_pipeline.clone(),
         }
     }
 }
 
-impl Mistral7BModel {
+impl StableLm2Model {
     pub fn new(
         api: Api,
         base: ModelBase,
@@ -34,18 +34,21 @@ impl Mistral7BModel {
         let repo = api.repo(Repo::with_revision(
             base.repo_id,
             RepoType::Model,
-            base.repo_revision.clone(),
+            base.repo_revision,
         ));
-        let mistral_repo = api.repo(Repo::with_revision(
-            "mistralai/Mistral-7B-Instruct-v0.1".into(),
+        let stablelm_repo = api.repo(Repo::with_revision(
+            "stabilityai/stablelm-2-zephyr-1_6b".into(),
             RepoType::Model,
-            "main".into(),
+            "095f80bcaa049c014925fec31d145754751899e6".into(), // TODO change later
         ));
-        let tokenizer_file = mistral_repo.get(&tokenizer_filename)?;
+        let config = std::fs::read_to_string(stablelm_repo.get("config.json")?)?;
+        let config: Config = serde_json::from_str(&config)?;
 
-        let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf(
+        let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf_config(
             repo,
-            tokenizer_file,
+            Model::StableLm(None),
+            ModelConfig::StableLm(config),
+            tokenizer_filename.as_str(),
             gguf_filename.as_str(),
             general_model_config.seed,
             general_model_config.temperature,
@@ -54,11 +57,11 @@ impl Mistral7BModel {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(Mistral7BModel { generator_pipeline })
+        Ok(StableLm2Model { generator_pipeline })
     }
 }
 
-impl RawHandler for Mistral7BModel {
+impl RawHandler for StableLm2Model {
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -79,9 +82,9 @@ impl RawHandler for Mistral7BModel {
     }
 }
 
-impl InstructHandler for Mistral7BModel {
+impl InstructHandler for StableLm2Model {
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
-        let prompt = format!("<s>[INST] {} [/INST]", request.input);
+        let prompt = format!("<|user|>\n{}<|endoftext|>\n<|assistant|>\n", request.input);
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&prompt, request.max_length)?;

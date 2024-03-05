@@ -19,7 +19,7 @@ use log::{error, info};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::inference::general::GeneralModelConfig;
+use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
 use crate::inference::models::model::ModelBase;
@@ -27,6 +27,7 @@ use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
 use crate::inference::models::openhermes::OpenHermesModel;
 use crate::inference::models::phi2::Phi2Model;
+use crate::inference::models::stablelm2::StableLm2Model;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
@@ -113,6 +114,21 @@ lazy_static! {
     )
     .map_err(|e| error!("Failed to create OpenHermes model: {}", e))
     .unwrap();
+    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+        Api::new().expect("Failed to create API"),
+        ModelBase {
+            name: "Quantized StableLM 2 Zephyr 1.6B".into(),
+            license: "StabilityAI Non-Commercial Research Community License".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "lmz/candle-stablelm".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-gpt4.json".into(),
+        "stablelm-2-zephyr-1_6b-q4k.gguf".into(),
+        GeneralModelConfig::default(),
+    )
+    .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
+    .unwrap();
 }
 
 #[tokio::main]
@@ -152,6 +168,10 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
+    info!(
+        "model_runner v{}",
+        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+    );
     info!("Listening on {}", addr);
     info!(
         "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
@@ -211,6 +231,7 @@ async fn handle_raw_request(
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
         )),
         "openhermes" => Ok((StatusCode::OK, Json(OPENHERMES_MODEL.clone().run_raw(req)?))),
+        "stablelm2" => Ok((StatusCode::OK, Json(STABLELM2_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
 }
@@ -227,7 +248,11 @@ async fn handle_instruct_request(
         )),
         "openhermes" => Ok((
             StatusCode::OK,
-            Json(OPENHERMES_MODEL.clone().run_instruct(req)?),
+            Json(OPENHERMES_MODEL.clone().run_instruct(req)?)
+        )),
+        "stablelm2" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_MODEL.clone().run_instruct(req)?),
         )),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }

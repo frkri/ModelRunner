@@ -4,7 +4,7 @@ use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::random;
 
-use crate::inference::general::GeneralModelConfig;
+use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::model::ModelBase;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};

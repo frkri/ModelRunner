@@ -2,8 +2,6 @@ name: Check ModelRunner
 
 on:
   pull_request:
-    branches:
-      - master
   push:
     branches:
       - master
@@ -24,6 +22,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Fmt
         run: cargo fmt --all -- --check

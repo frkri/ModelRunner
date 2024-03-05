@@ -5,10 +5,10 @@ use hf_hub::api::sync::Api;
 use hf_hub::{Repo, RepoType};
 use rand::random;
 
-use crate::inference::general::GeneralModelConfig;
+use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
-use crate::inference::text_pipeline::TextGeneratorPipeline;
+use crate::inference::text_pipeline::{Model, ModelConfig, TextGeneratorPipeline};
 use crate::ModelBase;
 
 pub struct Phi2Model {
@@ -38,9 +38,10 @@ impl Phi2Model {
             base.repo_revision,
         ));
 
-        let generator_pipeline = TextGeneratorPipeline::with_phi(
+        let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf_config(
             repo,
-            phi2_config,
+            Model::Phi(None),
+            ModelConfig::Phi(phi2_config),
             tokenizer_filename.as_str(),
             gguf_filename.as_str(),
             general_model_config.seed,
