@@ -211,12 +211,27 @@ async fn main() -> Result<()> {
 }
 
 async fn shutdown_handler(handle: Handle) {
-    match tokio::signal::ctrl_c().await {
-        Ok(()) => {
-            info!("Received shutdown signal");
-            handle.graceful_shutdown(Some(Duration::from_secs(45)));
+    let ctrl_c = async {
+        match tokio::signal::ctrl_c().await {
+            Ok(()) => info!("Received shutdown signal"),
+            Err(e) => error!("Failed to listen for shutdown signal: {}", e),
         }
-        Err(e) => error!("Failed to listen for shutdown signal: {}", e),
+    };
+
+    #[cfg(unix)]
+    let terminate_signal = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).await {
+            Ok(()) => info!("Received terminate signal"),
+            Err(e) => error!("Failed to listen for terminate signal: {}", e),
+        }
+    };
+
+    #[cfg(not(unix))]
+    let terminate_signal = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        _ = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
     }
 }
 
