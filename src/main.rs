@@ -136,6 +136,10 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
+    info!(
+        "model_runner v{}",
+        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+    );
     info!("Listening on {}", addr);
     info!(
         "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
