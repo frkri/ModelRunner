@@ -248,7 +248,7 @@ async fn handle_instruct_request(
         )),
         "openhermes" => Ok((
             StatusCode::OK,
-            Json(OPENHERMES_MODEL.clone().run_instruct(req)?)
+            Json(OPENHERMES_MODEL.clone().run_instruct(req)?),
         )),
         "stablelm2" => Ok((
             StatusCode::OK,
