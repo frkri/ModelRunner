@@ -38,7 +38,7 @@ content-type: application/json
 
 {
   "model": "openhermes",
-  "input": "<|im_start|>user\nGive me a detailed report about tomorrows sunny weather.<|im_end|>",
+  "input": "<|im_start|>user\nGive me a detailed report about tomorrows sunny weather.<|im_end|>\n<|im_start|>assistant\n",
   "max_length": 100,
   "model_config": {
     "temperature": 0.2,

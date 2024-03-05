@@ -81,7 +81,10 @@ impl RawHandler for OpenHermesModel {
 
 impl InstructHandler for OpenHermesModel {
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
-        let prompt = format!("<|im_start|>user\n{}<|im_end|>", request.input);
+        let prompt = format!(
+            "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+            request.input
+        );
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&prompt, request.max_length)?;
