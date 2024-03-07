@@ -17,7 +17,7 @@ authorization: Bearer {{api_key}}
 }
 
 ### Mistral 7B
-POST https://modelrunner.frkri.dev/text/raw
+POST http://{{host}}:{{port}}/text/raw
 content-type: application/json
 authorization: Bearer {{api_key}}
 

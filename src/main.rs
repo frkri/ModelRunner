@@ -1,9 +1,11 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
-use axum::extract::{DefaultBodyLimit, Multipart};
+use anyhow::{anyhow, Context, Result};
+use axum::extract::{DefaultBodyLimit, Multipart, Request, State};
 use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::post;
 use axum::{middleware, Json, Router};
 use axum_server::tls_rustls::RustlsConfig;
@@ -17,7 +19,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use sqlx::SqlitePool;
 
-use crate::auth::auth_middleware;
+use crate::auth::Auth;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
@@ -58,6 +60,7 @@ struct Args {
 #[derive(Clone)]
 struct AppState {
     db_pool: SqlitePool,
+    auth: Auth,
 }
 
 lazy_static! {
@@ -168,6 +171,10 @@ async fn main() -> Result<()> {
         .run(&db_pool)
         .await
         .context("Failed to run migrations")?;
+    let app_state = AppState {
+        db_pool,
+        auth: Auth::default(),
+    };
 
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
@@ -177,7 +184,6 @@ async fn main() -> Result<()> {
         // 10 MB limit
         .layer(DefaultBodyLimit::max(10_000_000));
 
-    let app_state = AppState { db_pool };
     let router = Router::new()
         .nest("/text", text_router)
         .nest("/audio", audio_router)
@@ -249,6 +255,27 @@ async fn shutdown_handler(handle: Handle) {
     tokio::select! {
         _ = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
         _ = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+    }
+}
+
+async fn auth_middleware(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> ModelResult<Response> {
+    let header = request.headers().get("authorization");
+    let key = match header {
+        Some(key) => key
+            .to_str()?
+            .strip_prefix("Bearer ")
+            .ok_or_else(|| anyhow!("Invalid authorization header"))?,
+        None => bail_runner!(StatusCode::BAD_REQUEST, "Missing authorization header"),
+    };
+
+    if state.auth.check_api_key(key, &state.db_pool).await? {
+        Ok(next.run(request).await)
+    } else {
+        bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
     }
 }
 
