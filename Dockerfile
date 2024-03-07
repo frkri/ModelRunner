@@ -16,12 +16,14 @@ LABEL org.opencontainers.image.license="MIT"
 
 WORKDIR /ModelRunner
 COPY --from=builder /ModelRunner/target/release/model_runner /ModelRunner/model_runner
+# Required for sqlite database
+COPY ./migrations /ModelRunner/migrations
 # Required for the whisper model
 COPY ./melfilters.bytes /ModelRunner/melfilters.bytes
 
 # Set the RUST_LOG environment variable to 'debug' to see more verbose logs
 ENV RUST_LOG=info
-# Change this to the port you want to expose
+# By default, the model runner will listen on port 25566
 EXPOSE 25566
 
 CMD ["./model_runner"]
