@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
-use axum::extract::{DefaultBodyLimit, Multipart, Request, State};
-use axum::http::StatusCode;
+use anyhow::{Context, Result};
+use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::post;
@@ -17,12 +17,15 @@ use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
+use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 
+use crate::auth::extract_auth_header;
 use crate::auth::Auth;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
+use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -38,10 +41,14 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+use crate::models::api::{
+    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
+};
 
 mod auth;
 mod config;
 mod error;
+mod extractors;
 mod inference;
 mod models;
 
@@ -57,7 +64,7 @@ struct Args {
     pub opt_config: <Config as ClapSerde>::Opt,
 }
 
-#[derive(Clone)]
+#[derive(Clone, FromRef)]
 struct AppState {
     db_pool: SqlitePool,
     auth: Auth,
@@ -164,9 +171,12 @@ async fn main() -> Result<()> {
         }
     };
 
-    let db_pool = SqlitePool::connect(&config.sqlite_connection_options)
+    let sqlite_options = SqliteConnectOptions::new()
+        .create_if_missing(true)
+        .filename(config.sqlite_connection_options);
+    let db_pool = SqlitePool::connect_with(sqlite_options)
         .await
-        .context("Failed to establish connection to database")?;
+        .context("Failed to connect to Sqlite")?;
     sqlx::migrate!()
         .run(&db_pool)
         .await
@@ -183,11 +193,20 @@ async fn main() -> Result<()> {
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
         .layer(DefaultBodyLimit::max(10_000_000));
+    let auth_router = Router::new()
+        .route("/status", post(handle_status_request))
+        .route("/create", post(handle_create_request))
+        .route("/delete", post(handle_delete_request));
 
     let router = Router::new()
+        .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
-        .layer(middleware::from_fn_with_state(app_state, auth_middleware));
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ))
+        .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
@@ -263,20 +282,51 @@ async fn auth_middleware(
     request: Request,
     next: Next,
 ) -> ModelResult<Response> {
-    let header = request.headers().get("authorization");
-    let key = match header {
-        Some(key) => key
-            .to_str()?
-            .strip_prefix("Bearer ")
-            .ok_or_else(|| anyhow!("Invalid authorization header"))?,
-        None => bail_runner!(StatusCode::BAD_REQUEST, "Missing authorization header"),
-    };
+    let header_value = extract_auth_header(request.headers())?;
 
-    if state.auth.check_api_key(key, &state.db_pool).await? {
+    if state
+        .auth
+        .check_api_key(header_value, &state.db_pool)
+        .await?
+    {
         Ok(next.run(request).await)
     } else {
         bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
     }
+}
+
+#[axum_macros::debug_handler]
+async fn handle_status_request(
+    State(_state): State<AppState>,
+    ApiClientExtractor(client): ApiClientExtractor,
+) -> ModelResult<(StatusCode, Json<ApiClient>)> {
+    client.has_permission(Permission::Status)?;
+    Ok((StatusCode::OK, Json(client)))
+}
+
+#[axum_macros::debug_handler]
+async fn handle_create_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(client): ApiClientExtractor,
+    Json(req): Json<ApiClientCreateRequest>,
+) -> ModelResult<(StatusCode, Json<ApiClientCreateResponse>)> {
+    client.has_permission(Permission::Create)?;
+    let key = state
+        .auth
+        .create_api_key(&req.name, req.permissions, &state.db_pool)
+        .await?;
+    Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
+}
+
+#[axum_macros::debug_handler]
+async fn handle_delete_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(client): ApiClientExtractor,
+    Json(req): Json<ApiClientDeleteRequest>,
+) -> ModelResult<StatusCode> {
+    client.has_permission(Permission::Delete)?;
+    state.auth.delete_api_key(&req.key, &state.db_pool).await?;
+    Ok(StatusCode::OK)
 }
 
 #[axum_macros::debug_handler]

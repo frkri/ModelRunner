@@ -9,4 +9,4 @@ private-key = "./path/to/your/key.file"
 
 # [Optional]
 # Sqlite database file path. If not specified, the database will be stored in model_runner.db
-database = "sqlite://model_runner.db"
+database = "model_runner.db"

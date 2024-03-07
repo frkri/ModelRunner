@@ -17,8 +17,8 @@ pub struct Config {
     #[command(flatten)]
     pub tls: <TlsConfig as ClapSerde>::Opt,
 
-    /// The SQLite connection url
-    #[arg(short, long, env, default_value = "sqlite://model_runner.db")]
+    /// The SQLite database file path
+    #[arg(short, long, env, default_value = "model_runner.db")]
     pub sqlite_connection_options: String,
 }
 
