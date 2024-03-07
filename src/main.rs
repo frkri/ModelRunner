@@ -2,12 +2,12 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use axum::{Json, middleware, Router};
 use axum::extract::{DefaultBodyLimit, Multipart};
 use axum::http::StatusCode;
 use axum::routing::post;
-use axum_server::Handle;
+use axum::{middleware, Json, Router};
 use axum_server::tls_rustls::RustlsConfig;
+use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
@@ -19,8 +19,8 @@ use sqlx::SqlitePool;
 
 use crate::auth::auth_middleware;
 use crate::config::Config;
-use crate::error::{HttpErrorResponse, ModelResult};
 use crate::error::ModelRunnerError;
+use crate::error::{HttpErrorResponse, ModelResult};
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -238,8 +238,8 @@ async fn shutdown_handler(handle: Handle) {
 
     #[cfg(unix)]
     let terminate_signal = async {
-        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).await {
-            Ok(()) => info!("Received terminate signal"),
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(_) => info!("Received terminate signal"),
             Err(e) => error!("Failed to listen for terminate signal: {}", e),
         }
     };
