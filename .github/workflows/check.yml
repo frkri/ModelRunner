@@ -22,12 +22,35 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      
+      - name: Cache sqlx-cli binary
+        id: sqlx-cli-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.local/bin/sqlx
+          key: ${{ runner.os }}-sqlx-cli-sqlite
 
-      - name: Cache
+      - name: Install sqlx-cli
+        if: ${{ steps.sqlx-cli-cache.outputs.cache-hit != 'true' }}
+        run: cargo install sqlx-cli --no-default-features --features sqlite
+
+      - run: |
+          ls -R /home/runner/.local/bin
+          chmod +x /home/runner/.local/bin/sqlx
+          echo /home/runner/.local/bin >> $GITHUB_PATH
+
+      - name: Setup sqlx
+        env:
+          DATABASE_URL: sqlite://model_runner_check.db
+        run: sqlx db setup
+
+      - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
       - name: Fmt
         run: cargo fmt --all -- --check
 
       - name: Clippy
+        env:
+          DATABASE_URL: sqlite://model_runner_check.db
         run: cargo clippy --all-targets --all-features -- -D warnings
