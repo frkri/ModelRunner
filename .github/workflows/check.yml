@@ -22,12 +22,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      
+
       - name: Cache sqlx-cli binary
         id: sqlx-cli-cache
         uses: actions/cache@v4
         with:
-          path: ~/.local/bin/sqlx
+          path: ~/.cargo/bin/sqlx
           key: ${{ runner.os }}-sqlx-cli-sqlite
 
       - name: Install sqlx-cli
@@ -35,8 +35,8 @@ jobs:
         run: cargo install sqlx-cli --no-default-features --features sqlite
 
       - run: |
-          chmod +x ~/.local/bin/sqlx
-          echo ~/.local/bin >> $GITHUB_PATH
+          chmod +x ~/.cargo/bin/sqlx
+          echo ~/.cargo/bin >> $GITHUB_PATH
 
       - name: Setup sqlx
         env:
