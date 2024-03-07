@@ -11,7 +11,7 @@ use base64ct::Encoding;
 use password_hash::rand_core::OsRng;
 use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use rand::RngCore;
-use sqlx::{SqlitePool};
+use sqlx::SqlitePool;
 
 use crate::error::ModelResult;
 use crate::HttpErrorResponse;
