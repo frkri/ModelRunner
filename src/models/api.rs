@@ -33,7 +33,7 @@ pub(crate) struct ApiClientCreateResponse {
 
 #[derive(Deserialize)]
 pub(crate) struct ApiClientDeleteRequest {
-    pub(crate) key: String,
+    pub(crate) id: String,
 }
 
 #[derive(PartialEq, Deserialize, Serialize)]

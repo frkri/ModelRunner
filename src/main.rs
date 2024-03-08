@@ -340,7 +340,7 @@ async fn handle_delete_request(
     Json(req): Json<ApiClientDeleteRequest>,
 ) -> ModelResult<StatusCode> {
     client.has_permission(Permission::Delete)?;
-    state.auth.delete_api_key(&req.key, &state.db_pool).await?;
+    state.auth.delete_api_key(&req.id, &state.db_pool).await?;
     Ok(StatusCode::OK)
 }
 

@@ -1,7 +1,11 @@
-### See status of current api key
+### See status of current api key, JSON body with target id is optional
 POST http://{{host}}:{{port}}/auth/status
 content-type: application/json
 authorization: Bearer {{api_key}}
+
+{
+  "id": "{{api_id}}"
+}
 
 ### Create new api key
 POST http://{{host}}:{{port}}/auth/create
@@ -23,7 +27,7 @@ content-type: application/json
 authorization: Bearer {{api_key}}
 
 {
-  "key": {{api_key}}
+  "id": "{{api_id}}"
 }
 
 
