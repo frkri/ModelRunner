@@ -289,7 +289,7 @@ async fn auth_middleware(
     next: Next,
 ) -> ModelResult<Response> {
     let header_value = extract_auth_header(request.headers())?;
-    if state
+    if !state
         .auth
         .check_api_key(header_value, &state.db_pool)
         .await?
