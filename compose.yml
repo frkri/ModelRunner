@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.9"
 name: model_runner_service
 
 services:
@@ -12,22 +12,23 @@ services:
     ports:
       - "25566:25566"
     environment:
-      - HF_HOME=/ModelRunner/hf-cache
       - RUST_LOG=info
-      # This will override the default address and port from the config file and the default internal values
+      - SQLITE_FILE_PATH=/ModelRunner/db/model_runner.db
+      - HF_HOME=/ModelRunner/hf-cache
       - ADDRESS=0.0.0.0
       - PORT=25566
-      - CONFIG_FILE=/ModelRunner/ModelRunner.toml
-    #      - CERTIFICATE=/run/secrets/cert-file
-    #      - PRIVATE_KEY=/run/secrets/key-file
+      # - CONFIG_FILE=/ModelRunner/ModelRunner.toml
+      # - CERTIFICATE=/run/secrets/cert-file
+      # - PRIVATE_KEY=/run/secrets/key-file
     volumes:
       - /var/cache/hf-cache:/ModelRunner/hf-cache # Cache dir for the downloaded files (models and other files) from Hugging Face, to be used with the HF_HOME environment variable
-    configs:
-      - source: model_runner_config
-        target: /ModelRunner/ModelRunner.toml
-#    secrets:
-#      - cert-file
-#      - key-file
+      - /var/lib/model-runner:/ModelRunner/db # Database dir for the SQLite database file, to be used with the SQLITE_FILE_PATH environment variable
+    # configs:
+    #  - source: model_runner_config
+    #    target: /ModelRunner/ModelRunner.toml
+    # secrets:
+    #  - cert-file
+    #  - key-file
 
 # Use the following to mount the config file rather than using environment variables. See https://docs.docker.com/compose/compose-file/08-configs/
 configs:
