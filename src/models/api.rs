@@ -33,6 +33,7 @@ pub(crate) struct ApiClientDeleteRequest {
 
 #[derive(PartialEq, Deserialize, Serialize)]
 pub(crate) enum Permission {
+    Use,
     Status,
     Create,
     Delete,
@@ -41,6 +42,7 @@ pub(crate) enum Permission {
 impl Display for Permission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Permission::Use => write!(f, "use"),
             Permission::Status => write!(f, "status"),
             Permission::Create => write!(f, "create"),
             Permission::Delete => write!(f, "delete"),
@@ -48,12 +50,25 @@ impl Display for Permission {
     }
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<i64> for Permission {
+    fn into(self) -> i64 {
+        match self {
+            Permission::Use => 1,
+            Permission::Status => 2,
+            Permission::Create => 3,
+            Permission::Delete => 4,
+        }
+    }
+}
+
 impl From<i64> for Permission {
     fn from(item: i64) -> Self {
         match item {
-            1 => Permission::Status,
-            2 => Permission::Create,
-            3 => Permission::Delete,
+            1 => Permission::Use,
+            2 => Permission::Status,
+            3 => Permission::Create,
+            4 => Permission::Delete,
             _ => unreachable!(),
         }
     }

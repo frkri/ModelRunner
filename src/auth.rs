@@ -55,7 +55,7 @@ impl Auth {
         .await?;
 
         for p in permission {
-            let scope_id = p as i64;
+            let scope_id: i64 = p.into();
             sqlx::query!(
                 "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
                 id,

@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use auth::extract_id_key;
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
@@ -284,15 +285,18 @@ async fn auth_middleware(
 ) -> ModelResult<Response> {
     let header_value = extract_auth_header(request.headers())?;
 
-    if state
+    if !state
         .auth
         .check_api_key(header_value, &state.db_pool)
         .await?
     {
-        Ok(next.run(request).await)
-    } else {
         bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
     }
+
+    let (id, _) = extract_id_key(header_value)?;
+    let client = ApiClient::from(id, &state.db_pool).await?;
+    client.has_permission(Permission::Use)?;
+    Ok(next.run(request).await)
 }
 
 #[axum_macros::debug_handler]
