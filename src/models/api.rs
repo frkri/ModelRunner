@@ -16,6 +16,11 @@ pub(crate) struct ApiClient {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct ApiClientStatusRequest {
+    pub(crate) id: String,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct ApiClientCreateRequest {
     pub(crate) name: String,
     pub(crate) permissions: Vec<Permission>,

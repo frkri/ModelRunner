@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
+use std::option::Option;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use auth::extract_id_key;
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -42,6 +43,7 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+use crate::models::api::ApiClientStatusRequest;
 use crate::models::api::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
 };
@@ -301,11 +303,20 @@ async fn auth_middleware(
 
 #[axum_macros::debug_handler]
 async fn handle_status_request(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     ApiClientExtractor(client): ApiClientExtractor,
+    req: Option<Json<ApiClientStatusRequest>>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
-    client.has_permission(Permission::Status)?;
-    Ok((StatusCode::OK, Json(client)))
+    match req {
+        Some(req) => {
+            client.has_permission(Permission::Status)?;
+            let target = ApiClient::from(req.id.as_str(), &state.db_pool)
+                .await
+                .map_err(|_| anyhow!("Failed to find client by id"))?;
+            Ok((StatusCode::OK, Json(target)))
+        }
+        _ => Ok((StatusCode::OK, Json(client))),
+    }
 }
 
 #[axum_macros::debug_handler]
