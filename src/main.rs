@@ -338,11 +338,14 @@ async fn handle_create_request(
 #[axum_macros::debug_handler]
 async fn handle_delete_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    ApiClientExtractor(mut client): ApiClientExtractor,
     Json(req): Json<ApiClientDeleteRequest>,
 ) -> ModelResult<StatusCode> {
     client.has_permission(Permission::Delete)?;
-    state.auth.delete_api_key(&req.id, &state.db_pool).await?;
+    if req.id != client.id {
+        client = ApiClient::from(req.id.as_str(), &state.db_pool).await?;
+    }
+    client.delete(&state.db_pool).await?;
     Ok(StatusCode::OK)
 }
 

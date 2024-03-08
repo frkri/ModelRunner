@@ -147,6 +147,19 @@ impl ApiClient {
         Ok(())
     }
 
+    pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
+        let client_delete =
+            sqlx::query!("DELETE FROM api_clients WHERE id = ?", self.id).execute(pool);
+        let permission_delete = sqlx::query!(
+            "DELETE FROM api_client_permission_scopes where api_client_id = ?",
+            self.id
+        )
+        .execute(pool);
+
+        try_join!(client_delete, permission_delete)?;
+        Ok(())
+    }
+
     pub(crate) async fn update(
         &self,
         name: &String,
