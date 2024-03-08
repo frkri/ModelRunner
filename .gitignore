@@ -2,3 +2,4 @@
 /.idea
 
 ModelRunner.toml
+model_runner.db*

@@ -16,6 +16,10 @@ pub struct Config {
     #[serde(default)]
     #[command(flatten)]
     pub tls: <TlsConfig as ClapSerde>::Opt,
+
+    /// The SQLite database file path
+    #[arg(short, long, env, default_value = "model_runner.db")]
+    pub sqlite_file_path: String,
 }
 
 #[derive(ClapSerde, Deserialize, Debug)]

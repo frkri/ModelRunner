@@ -11,6 +11,10 @@ codegen-units = 1
 strip = true
 lto = true
 
+[[bin]]
+name = "modelrunner-cli"
+path = "src/bin/modelrunner-cli.rs"
+
 [dependencies]
 anyhow = "1.0.80"
 log = "0.4.20"
@@ -33,3 +37,7 @@ candle-nn = "0.4.0"
 byteorder = "1.5.0"
 symphonia = "0.5.3"
 rand = "0.8.5"
+sqlx = { version = "0.7.3", features = ["runtime-tokio", "sqlite", "sqlx-sqlite"] }
+password-hash = "0.5.0"
+argon2 = "0.5.3"
+base64ct = "1.6.0"

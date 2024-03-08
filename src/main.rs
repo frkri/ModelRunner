@@ -1,11 +1,14 @@
 use std::net::SocketAddr;
+use std::option::Option;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
-use axum::extract::{DefaultBodyLimit, Multipart};
+use anyhow::{anyhow, Context, Result};
+use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::post;
-use axum::{Json, Router};
+use axum::{middleware, Json, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use candle_transformers::models::mixformer;
@@ -15,10 +18,20 @@ use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use log::{error, info};
+use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::SqlitePool;
 
+use crate::api::api_client::{
+    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
+};
+use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
+use crate::api::auth::extract_auth_header;
+use crate::api::auth::extract_id_key;
+use crate::api::auth::Auth;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
+use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -35,8 +48,10 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 
+pub mod api;
 mod config;
-mod error;
+pub mod error;
+mod extractors;
 mod inference;
 
 #[derive(Parser)]
@@ -49,6 +64,12 @@ struct Args {
     /// Configuration options
     #[command(flatten)]
     pub opt_config: <Config as ClapSerde>::Opt,
+}
+
+#[derive(Clone, FromRef)]
+struct AppState {
+    db_pool: SqlitePool,
+    auth: Auth,
 }
 
 lazy_static! {
@@ -152,18 +173,44 @@ async fn main() -> Result<()> {
         }
     };
 
+    let sqlite_options = SqliteConnectOptions::new()
+        .create_if_missing(true)
+        .filename(config.sqlite_file_path);
+    let db_pool = SqlitePool::connect_with(sqlite_options)
+        .await
+        .context("Failed to connect to Sqlite")?;
+    sqlx::migrate!()
+        .run(&db_pool)
+        .await
+        .context("Failed to run migrations")?;
+    let app_state = AppState {
+        db_pool,
+        auth: Auth::default(),
+    };
+
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
         .route("/instruct", post(handle_instruct_request));
-
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
         .layer(DefaultBodyLimit::max(10_000_000));
 
+    let auth_router = Router::new()
+        .route("/status", post(handle_status_request))
+        .route("/create", post(handle_create_request))
+        .route("/delete", post(handle_delete_request))
+        .route("/update", post(handle_update_request));
+
     let router = Router::new()
+        .nest("/auth", auth_router)
         .nest("/text", text_router)
-        .nest("/audio", audio_router);
+        .nest("/audio", audio_router)
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ))
+        .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
@@ -219,10 +266,13 @@ async fn shutdown_handler(handle: Handle) {
 
     #[cfg(unix)]
     let terminate_signal = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("Failed to create terminate signal")
-            .recv()
-            .await;
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+                info!("Received terminate signal");
+            }
+            Err(e) => error!("Failed to listen for terminate signal: {}", e),
+        }
     };
 
     #[cfg(not(unix))]
@@ -232,6 +282,91 @@ async fn shutdown_handler(handle: Handle) {
         _ = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
         _ = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
     }
+}
+
+async fn auth_middleware(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> ModelResult<Response> {
+    let header_value = extract_auth_header(request.headers())?;
+    if !state
+        .auth
+        .check_api_key(header_value, &state.db_pool)
+        .await?
+    {
+        bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
+    }
+
+    let (id, _) = extract_id_key(header_value)?;
+    let client = ApiClient::from(id, &state.db_pool).await?;
+    client.has_permission(Permission::Use)?;
+    Ok(next.run(request).await)
+}
+
+#[axum_macros::debug_handler]
+async fn handle_status_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(client): ApiClientExtractor,
+    req: Option<Json<ApiClientStatusRequest>>,
+) -> ModelResult<(StatusCode, Json<ApiClient>)> {
+    match req {
+        Some(req) => {
+            client.has_permission(Permission::Status)?;
+            let target = ApiClient::from(req.id.as_str(), &state.db_pool)
+                .await
+                .map_err(|_| anyhow!("Failed to find any client matching ID"))?;
+            Ok((StatusCode::OK, Json(target)))
+        }
+        _ => Ok((StatusCode::OK, Json(client))),
+    }
+}
+
+#[axum_macros::debug_handler]
+async fn handle_create_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(client): ApiClientExtractor,
+    Json(req): Json<ApiClientCreateRequest>,
+) -> ModelResult<(StatusCode, Json<ApiClientCreateResponse>)> {
+    client.has_permission(Permission::Create)?;
+    let key = state
+        .auth
+        .create_api_key(&req.name, &req.permissions, &state.db_pool)
+        .await?;
+    Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
+}
+
+#[axum_macros::debug_handler]
+async fn handle_delete_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(mut client): ApiClientExtractor,
+    Json(req): Json<ApiClientDeleteRequest>,
+) -> ModelResult<StatusCode> {
+    client.has_permission(Permission::Delete)?;
+    if req.id != client.id {
+        client = ApiClient::from(req.id.as_str(), &state.db_pool).await?;
+    }
+    client.delete(&state.db_pool).await?;
+    Ok(StatusCode::OK)
+}
+
+#[axum_macros::debug_handler]
+async fn handle_update_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(mut client): ApiClientExtractor,
+    req: Json<ApiClientUpdateRequest>,
+) -> ModelResult<StatusCode> {
+    client.has_permission(Permission::Update)?;
+    if let Some(id) = &req.id {
+        if id != &client.id {
+            client = ApiClient::from(id.as_str(), &state.db_pool).await?;
+        }
+    }
+    client
+        .update(&req.name, &req.permissions, &state.db_pool)
+        .await?;
+
+    Ok(StatusCode::OK)
 }
 
 #[axum_macros::debug_handler]
@@ -345,7 +480,7 @@ async fn handle_transcribe_request(
     }
 }
 
-// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
+/// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
 static VALID_WAV_MIME_TYPES: [&str; 4] =
     ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
 

@@ -3,7 +3,6 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Serialize;
 
-// Taken from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs
 #[derive(Debug)]
 pub struct ModelRunnerError {
     pub status: StatusCode,

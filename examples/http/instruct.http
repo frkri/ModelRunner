@@ -1,6 +1,7 @@
 ### Phi 2
-POST http://localhost:25566/text/instruct
+POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
+authorization: Bearer {{api_key}}
 
 {
   "model": "phi2",
@@ -9,8 +10,9 @@ content-type: application/json
 }
 
 ### Mistral 7B
-POST http://localhost:25566/text/instruct
+POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
+authorization: Bearer {{api_key}}
 
 {
   "model": "mistral7b",
@@ -19,8 +21,9 @@ content-type: application/json
 }
 
 ### OpenHermes 2.5 Mistral7B
-POST http://localhost:25566/text/instruct
+POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
+authorization: Bearer {{api_key}}
 
 {
   "model": "openhermes",
@@ -29,8 +32,9 @@ content-type: application/json
 }
 
 ### StableLM 2 Zephyr 1.6B
-POST http://localhost:25566/text/instruct
+POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
+authorization: Bearer {{api_key}}
 
 {
   "model": "stablelm2",
