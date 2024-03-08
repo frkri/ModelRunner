@@ -43,10 +43,10 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
-use crate::models::api::ApiClientStatusRequest;
 use crate::models::api::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
 };
+use crate::models::api::{ApiClientStatusRequest, ApiClientUpdateRequest};
 
 mod auth;
 mod config;
@@ -191,24 +191,29 @@ async fn main() -> Result<()> {
 
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
-        .route("/instruct", post(handle_instruct_request));
+        .route("/instruct", post(handle_instruct_request))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
-        .layer(DefaultBodyLimit::max(10_000_000));
+        .layer(DefaultBodyLimit::max(10_000_000))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
     let auth_router = Router::new()
         .route("/status", post(handle_status_request))
         .route("/create", post(handle_create_request))
-        .route("/delete", post(handle_delete_request));
+        .route("/delete", post(handle_delete_request))
+        .route("/update", post(handle_update_request));
 
     let router = Router::new()
         .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
@@ -341,6 +346,25 @@ async fn handle_delete_request(
 ) -> ModelResult<StatusCode> {
     client.has_permission(Permission::Delete)?;
     state.auth.delete_api_key(&req.id, &state.db_pool).await?;
+    Ok(StatusCode::OK)
+}
+
+#[axum_macros::debug_handler]
+async fn handle_update_request(
+    State(state): State<AppState>,
+    ApiClientExtractor(mut client): ApiClientExtractor,
+    req: Json<ApiClientUpdateRequest>,
+) -> ModelResult<StatusCode> {
+    client.has_permission(Permission::Update)?;
+    if let Some(id) = &req.id {
+        if id != &client.id {
+            client = ApiClient::from(id.as_str(), &state.db_pool).await?;
+        }
+    }
+    client
+        .update(&req.name, &req.permissions, &state.db_pool)
+        .await?;
+
     Ok(StatusCode::OK)
 }
 

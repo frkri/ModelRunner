@@ -30,5 +30,13 @@ authorization: Bearer {{api_key}}
   "id": "{{api_id}}"
 }
 
+### Update key
+POST http://{{host}}:{{port}}/auth/update
+content-type: application/json
+authorization: Bearer {{api_key}}
 
-
+{
+  "id": "{{api_id}}",
+  "name": "updated_key",
+  "permissions": ["Update", "Status","Create", "Use", "Delete"]
+}

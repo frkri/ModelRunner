@@ -1,18 +1,22 @@
 use std::fmt::Display;
+use std::time::SystemTime;
 
 use anyhow::bail;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use tokio::try_join;
 
 #[allow(dead_code)]
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct ApiClient {
     pub(crate) id: String,
     pub(crate) name: Option<String>,
     #[serde(skip)]
     pub(crate) key: String,
     pub(crate) permissions: Vec<Permission>,
+    pub(crate) created_at: i64,
+    pub(crate) updated_at: i64,
 }
 
 #[derive(Deserialize)]
@@ -36,12 +40,20 @@ pub(crate) struct ApiClientDeleteRequest {
     pub(crate) id: String,
 }
 
+#[derive(Deserialize)]
+pub(crate) struct ApiClientUpdateRequest {
+    pub(crate) id: Option<String>,
+    pub(crate) name: String,
+    pub(crate) permissions: Vec<Permission>,
+}
+
 #[derive(PartialEq, Deserialize, Serialize)]
 pub(crate) enum Permission {
     Use,
     Status,
     Create,
     Delete,
+    Update,
 }
 
 impl Display for Permission {
@@ -51,6 +63,7 @@ impl Display for Permission {
             Permission::Status => write!(f, "status"),
             Permission::Create => write!(f, "create"),
             Permission::Delete => write!(f, "delete"),
+            Permission::Update => write!(f, "update"),
         }
     }
 }
@@ -63,6 +76,7 @@ impl Into<i64> for Permission {
             Permission::Status => 2,
             Permission::Create => 3,
             Permission::Delete => 4,
+            Permission::Update => 5,
         }
     }
 }
@@ -74,15 +88,33 @@ impl From<i64> for Permission {
             2 => Permission::Status,
             3 => Permission::Create,
             4 => Permission::Delete,
+            5 => Permission::Update,
             _ => unreachable!(),
+        }
+    }
+}
+
+// TODO: Find alternative?
+#[allow(clippy::from_over_into)]
+impl Into<i64> for &Permission {
+    fn into(self) -> i64 {
+        match self {
+            Permission::Use => 1,
+            Permission::Status => 2,
+            Permission::Create => 3,
+            Permission::Delete => 4,
+            Permission::Update => 5,
         }
     }
 }
 
 impl ApiClient {
     pub(crate) async fn from(id: &str, pool: &SqlitePool) -> Result<Self> {
-        let half_client =
-            sqlx::query!("SELECT id, name, key FROM api_clients WHERE id = ?", id).fetch_one(pool);
+        let half_client = sqlx::query!(
+            "SELECT id, name, key, created_at, updated_at FROM api_clients WHERE id = ?",
+            id
+        )
+        .fetch_one(pool);
         let client_permissions = sqlx::query!(
             "SELECT scope_id FROM api_client_permission_scopes WHERE api_client_id = ?",
             id
@@ -98,6 +130,8 @@ impl ApiClient {
             id: half_client.id,
             name: half_client.name,
             key: half_client.key,
+            created_at: half_client.created_at,
+            updated_at: half_client.updated_at,
             permissions,
         };
 
@@ -110,6 +144,44 @@ impl ApiClient {
                 permission
             )
         }
+        Ok(())
+    }
+
+    pub(crate) async fn update(
+        &self,
+        name: &String,
+        permission: &Vec<Permission>,
+        pool: &SqlitePool,
+    ) -> Result<()> {
+        let unix_now: i64 = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis()
+            .try_into()?;
+        let update_query = sqlx::query!(
+            "UPDATE api_clients SET name = ?, updated_at = ? WHERE id = ?",
+            name,
+            unix_now,
+            self.id
+        )
+        .execute(pool);
+        let delete_query = sqlx::query!(
+            "DELETE FROM api_client_permission_scopes WHERE api_client_id = ?",
+            self.id
+        )
+        .execute(pool);
+        try_join!(update_query, delete_query)?;
+
+        for p in permission {
+            let scope_id: i64 = p.into();
+            sqlx::query!(
+                "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
+                self.id,
+                scope_id
+            )
+            .execute(pool)
+            .await?;
+        }
+
         Ok(())
     }
 }

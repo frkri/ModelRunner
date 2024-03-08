@@ -1,8 +1,10 @@
 create table api_clients
 (
-    id   text primary key not null,
-    name text,
-    key  text             not null
+    id         text primary key not null,
+    name       text,
+    key        text             not null,
+    created_at integer          not null,
+    updated_at integer          not null
 );
 
 create table permission_scopes
@@ -27,3 +29,5 @@ insert into permission_scopes (permission)
 values ('create');
 insert into permission_scopes (permission)
 values ('delete');
+insert into permission_scopes (permission)
+values ('update');

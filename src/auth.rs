@@ -6,6 +6,7 @@ use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sqlx::SqlitePool;
+use std::time::SystemTime;
 
 use crate::models::api::Permission;
 use crate::HeaderMap;
@@ -44,12 +45,18 @@ impl Auth {
             .map_err(|e| anyhow!(e))?
             .to_string();
 
+        let unix_now: i64 = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_millis()
+            .try_into()?;
         sqlx::query_as!(
             ApiClient,
-            "INSERT INTO api_clients (id, name, key) VALUES (?, ?, ?)",
+            "INSERT INTO api_clients (id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
             id,
             name,
-            key_hash
+            key_hash,
+            unix_now,
+            unix_now,
         )
         .execute(pool)
         .await?;
