@@ -271,7 +271,10 @@ async fn shutdown_handler(handle: Handle) {
     #[cfg(unix)]
     let terminate_signal = async {
         match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
-            Ok(_) => info!("Received terminate signal"),
+            Ok(mut signal) => {
+                signal.recv().await;
+                info!("Received terminate signal");
+            }
             Err(e) => error!("Failed to listen for terminate signal: {}", e),
         }
     };
