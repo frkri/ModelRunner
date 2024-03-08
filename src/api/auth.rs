@@ -76,14 +76,6 @@ impl Auth {
         Ok(format!("{}_{}", id, key))
     }
 
-    pub(crate) async fn delete_api_key(&self, id: &str, pool: &SqlitePool) -> Result<()> {
-        sqlx::query!("DELETE FROM api_clients WHERE id = ?", id)
-            .execute(pool)
-            .await?;
-
-        Ok(())
-    }
-
     pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<bool> {
         let (id, key) = extract_id_key(key)?;
 
