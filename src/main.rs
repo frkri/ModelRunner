@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::post;
@@ -28,10 +28,10 @@ use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
 use crate::api::auth::extract_auth_header;
 use crate::api::auth::extract_id_key;
 use crate::api::auth::Auth;
-use crate::api::extractors::ApiClientExtractor;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
+use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -48,9 +48,10 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 
-mod api;
+pub mod api;
 mod config;
-mod error;
+pub mod error;
+mod extractors;
 mod inference;
 
 #[derive(Parser)]
@@ -174,7 +175,7 @@ async fn main() -> Result<()> {
 
     let sqlite_options = SqliteConnectOptions::new()
         .create_if_missing(true)
-        .filename(config.sqlite_connection_options);
+        .filename(config.sqlite_file_path);
     let db_pool = SqlitePool::connect_with(sqlite_options)
         .await
         .context("Failed to connect to Sqlite")?;
@@ -330,7 +331,7 @@ async fn handle_create_request(
     client.has_permission(Permission::Create)?;
     let key = state
         .auth
-        .create_api_key(&req.name, req.permissions, &state.db_pool)
+        .create_api_key(&req.name, &req.permissions, &state.db_pool)
         .await?;
     Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
 }

@@ -2,6 +2,7 @@ use std::time::SystemTime;
 
 use anyhow::{anyhow, bail, Result};
 use argon2::Argon2;
+use axum::http::HeaderMap;
 use base64ct::Base64;
 use base64ct::Encoding;
 use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
@@ -10,10 +11,9 @@ use rand::RngCore;
 use sqlx::SqlitePool;
 
 use crate::api::api_client::Permission;
-use crate::HeaderMap;
 
 #[derive(Clone)]
-pub(crate) struct Auth {
+pub struct Auth {
     argon: Argon2<'static>,
 }
 
@@ -25,10 +25,10 @@ impl Default for Auth {
 }
 
 impl Auth {
-    pub(crate) async fn create_api_key(
+    pub async fn create_api_key(
         &self,
         name: &str,
-        permission: Vec<Permission>,
+        permission: &Vec<Permission>,
         pool: &SqlitePool,
     ) -> Result<String> {
         let mut key = [0u8; 64];
@@ -94,7 +94,7 @@ impl Auth {
     }
 }
 
-pub(crate) fn extract_auth_header(headers: &HeaderMap) -> Result<&str> {
+pub fn extract_auth_header(headers: &HeaderMap) -> Result<&str> {
     let header = headers.get("authorization");
     let key = match header {
         Some(key) => key

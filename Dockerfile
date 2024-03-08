@@ -7,7 +7,7 @@ WORKDIR /ModelRunner
 COPY . /ModelRunner
 
 ENV RUSTFLAGS=${rust_flags}
-RUN cargo build --release
+RUN cargo build --release --bin model_runner
 
 FROM gcr.io/distroless/cc-debian12 as runtime
 LABEL org.opencontainers.image.source="https://github.com/frkri/ModelRunner"

@@ -19,7 +19,7 @@ pub struct Config {
 
     /// The SQLite database file path
     #[arg(short, long, env, default_value = "model_runner.db")]
-    pub sqlite_connection_options: String,
+    pub sqlite_file_path: String,
 }
 
 #[derive(ClapSerde, Deserialize, Debug)]

@@ -3,6 +3,7 @@ use std::time::SystemTime;
 
 use anyhow::bail;
 use anyhow::Result;
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tokio::try_join;
@@ -47,8 +48,8 @@ pub(crate) struct ApiClientUpdateRequest {
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(PartialEq, Deserialize, Serialize)]
-pub(crate) enum Permission {
+#[derive(PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum)]
+pub enum Permission {
     Use,
     Status,
     Create,
