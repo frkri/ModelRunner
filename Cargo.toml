@@ -18,7 +18,7 @@ path = "src/bin/modelrunner-cli.rs"
 [dependencies]
 anyhow = "1.0.80"
 log = "0.4.20"
-env_logger = "0.11.2"
+env_logger = "0.11.3"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
 axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
