@@ -30,7 +30,7 @@ enum Commands {
         name: String,
 
         /// Scope of permission that the key will have
-        #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
+        #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::Status, Permission::Use])]
         permission: Vec<Permission>,
     },
 }
