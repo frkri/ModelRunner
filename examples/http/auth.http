@@ -38,5 +38,5 @@ authorization: Bearer {{api_key}}
 {
   "id": "{{api_id}}",
   "name": "updated_key",
-  "permissions": ["Update", "Status","Create", "Use", "Delete"]
+  "permissions": ["Update", "Status", "Create", "Use", "Delete"]
 }

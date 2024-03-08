@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use anyhow::{anyhow, bail, Result};
 use argon2::Argon2;
 use base64ct::Base64;
@@ -6,9 +8,8 @@ use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sqlx::SqlitePool;
-use std::time::SystemTime;
 
-use crate::models::api::Permission;
+use crate::api::api_client::Permission;
 use crate::HeaderMap;
 
 #[derive(Clone)]
@@ -89,7 +90,7 @@ impl Auth {
         let hashed_key_record = sqlx::query!("SELECT key FROM api_clients WHERE id = ?", id)
             .fetch_one(pool)
             .await
-            .map_err(|_| anyhow!("Invalid key"))?;
+            .map_err(|_| anyhow!("Invalid API key"))?;
         let hashed_key =
             PasswordHash::new(hashed_key_record.key.as_str()).map_err(|e| anyhow!(e))?;
 

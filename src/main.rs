@@ -3,7 +3,6 @@ use std::option::Option;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use auth::extract_id_key;
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
@@ -22,12 +21,17 @@ use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 
-use crate::auth::extract_auth_header;
-use crate::auth::Auth;
+use crate::api::api_client::{
+    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
+};
+use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
+use crate::api::auth::extract_auth_header;
+use crate::api::auth::extract_id_key;
+use crate::api::auth::Auth;
+use crate::api::extractors::ApiClientExtractor;
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -43,17 +47,11 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
-use crate::models::api::{
-    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
-};
-use crate::models::api::{ApiClientStatusRequest, ApiClientUpdateRequest};
 
-mod auth;
+mod api;
 mod config;
 mod error;
-mod extractors;
 mod inference;
-mod models;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -191,19 +189,12 @@ async fn main() -> Result<()> {
 
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
-        .route("/instruct", post(handle_instruct_request))
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ));
+        .route("/instruct", post(handle_instruct_request));
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
-        .layer(DefaultBodyLimit::max(10_000_000))
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ));
+        .layer(DefaultBodyLimit::max(10_000_000));
+
     let auth_router = Router::new()
         .route("/status", post(handle_status_request))
         .route("/create", post(handle_create_request))
@@ -214,6 +205,10 @@ async fn main() -> Result<()> {
         .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
@@ -294,8 +289,7 @@ async fn auth_middleware(
     next: Next,
 ) -> ModelResult<Response> {
     let header_value = extract_auth_header(request.headers())?;
-
-    if !state
+    if state
         .auth
         .check_api_key(header_value, &state.db_pool)
         .await?
@@ -320,7 +314,7 @@ async fn handle_status_request(
             client.has_permission(Permission::Status)?;
             let target = ApiClient::from(req.id.as_str(), &state.db_pool)
                 .await
-                .map_err(|_| anyhow!("Failed to find client by id"))?;
+                .map_err(|_| anyhow!("Failed to find any client matching ID"))?;
             Ok((StatusCode::OK, Json(target)))
         }
         _ => Ok((StatusCode::OK, Json(client))),
@@ -482,7 +476,7 @@ async fn handle_transcribe_request(
     }
 }
 
-// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
+/// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
 static VALID_WAV_MIME_TYPES: [&str; 4] =
     ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
 

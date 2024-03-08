@@ -12,7 +12,7 @@ use tokio::try_join;
 pub(crate) struct ApiClient {
     pub(crate) id: String,
     pub(crate) name: Option<String>,
-    #[serde(skip)]
+    #[serde(skip_serializing)]
     pub(crate) key: String,
     pub(crate) permissions: Vec<Permission>,
     pub(crate) created_at: i64,
@@ -121,7 +121,7 @@ impl ApiClient {
         )
         .fetch_all(pool);
 
-        let (half_client, client_permissions) = tokio::try_join!(half_client, client_permissions)?;
+        let (half_client, client_permissions) = try_join!(half_client, client_permissions)?;
         let permissions: Vec<Permission> = client_permissions
             .iter()
             .map(|p| Permission::from(p.scope_id))
