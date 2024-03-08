@@ -12,8 +12,8 @@ strip = true
 lto = true
 
 [[bin]]
-name = "modelrunner-cli"
-path = "src/bin/modelrunner-cli.rs"
+name = "model_runner_cli"
+path = "src/bin/cli.rs"
 
 [dependencies]
 anyhow = "1.0.80"
