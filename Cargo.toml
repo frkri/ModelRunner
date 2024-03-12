@@ -16,7 +16,7 @@ name = "model_runner_cli"
 path = "src/bin/cli.rs"
 
 [dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 log = "0.4.20"
 env_logger = "0.11.3"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
