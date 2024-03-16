@@ -7,6 +7,7 @@ use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
+use axum::routing::get;
 use axum::routing::post;
 use axum::{middleware, Json, Router};
 use axum_server::tls_rustls::RustlsConfig;
@@ -190,26 +191,35 @@ async fn main() -> Result<()> {
 
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
-        .route("/instruct", post(handle_instruct_request));
+        .route("/instruct", post(handle_instruct_request))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
-        .layer(DefaultBodyLimit::max(10_000_000));
+        .layer(DefaultBodyLimit::max(10_000_000))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
 
     let auth_router = Router::new()
         .route("/status", post(handle_status_request))
         .route("/create", post(handle_create_request))
         .route("/delete", post(handle_delete_request))
-        .route("/update", post(handle_update_request));
+        .route("/update", post(handle_update_request))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ));
 
     let router = Router::new()
         .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ))
+        .route("/health", get(handle_health_request))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
@@ -302,6 +312,11 @@ async fn auth_middleware(
     let client = ApiClient::from(id, &state.db_pool).await?;
     client.has_permission(Permission::Use)?;
     Ok(next.run(request).await)
+}
+
+#[axum_macros::debug_handler]
+async fn handle_health_request() -> ModelResult<StatusCode> {
+    Ok(StatusCode::OK)
 }
 
 #[axum_macros::debug_handler]
