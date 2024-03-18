@@ -1,7 +1,7 @@
 use rand::random;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Copy, Clone)]
 pub struct GeneralModelConfig {
     pub seed: Option<u64>,
     pub temperature: Option<f64>,

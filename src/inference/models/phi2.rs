@@ -25,25 +25,25 @@ impl Clone for Phi2Model {
 
 impl Phi2Model {
     pub fn new(
-        api: Api,
-        base: ModelBase,
-        tokenizer_filename: String,
-        gguf_filename: String,
+        api: &Api,
+        base: &ModelBase,
+        tokenizer_filename: &str,
+        gguf_filename: &str,
         phi2_config: mixformer::Config,
         general_model_config: GeneralModelConfig,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
-            base.repo_id,
+            base.repo_id.clone(),
             RepoType::Model,
-            base.repo_revision,
+            base.repo_revision.clone(),
         ));
 
         let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf_config(
-            repo,
-            Model::Phi(None),
+            &repo,
+            &Model::Phi(None),
             ModelConfig::Phi(phi2_config),
-            tokenizer_filename.as_str(),
-            gguf_filename.as_str(),
+            tokenizer_filename,
+            gguf_filename,
             general_model_config.seed,
             general_model_config.temperature,
             general_model_config.top_p,

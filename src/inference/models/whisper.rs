@@ -25,11 +25,11 @@ impl Clone for WhisperModel {
 impl WhisperModel {
     pub fn new(
         api: Api,
-        base: ModelBase,
-        config_filename: String,
-        tokenizer_filename: String,
-        gguf_filename: String,
-        mel_filters_filename: String,
+        base: &ModelBase,
+        config_filename: &str,
+        tokenizer_filename: &str,
+        gguf_filename: &str,
+        mel_filters_filename: &str,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
             base.repo_id.clone(),
@@ -37,11 +37,11 @@ impl WhisperModel {
             base.repo_revision.clone(),
         ));
         let generator_pipeline = AudioGeneratorPipeline::with_gguf_model(
-            repo,
-            config_filename.as_str(),
-            tokenizer_filename.as_str(),
-            gguf_filename.as_str(),
-            mel_filters_filename.as_str(),
+            &repo,
+            config_filename,
+            tokenizer_filename,
+            gguf_filename,
+            mel_filters_filename,
             true,
             rand::rngs::StdRng::from_seed([0; 32]),
         )?;

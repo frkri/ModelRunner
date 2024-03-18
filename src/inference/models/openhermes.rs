@@ -25,10 +25,10 @@ impl Clone for OpenHermesModel {
 
 impl OpenHermesModel {
     pub fn new(
-        api: Api,
+        api: &Api,
         base: ModelBase,
-        tokenizer_filename: String,
-        gguf_filename: String,
+        tokenizer_filename: &str,
+        gguf_filename: &str,
         general_model_config: GeneralModelConfig,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
@@ -41,12 +41,12 @@ impl OpenHermesModel {
             RepoType::Model,
             "main".into(),
         ));
-        let tokenizer_file = mistral_repo.get(&tokenizer_filename)?;
+        let tokenizer_file = mistral_repo.get(tokenizer_filename)?;
 
         let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf(
-            repo,
+            &repo,
             tokenizer_file,
-            gguf_filename.as_str(),
+            gguf_filename,
             general_model_config.seed,
             general_model_config.temperature,
             general_model_config.top_p,
