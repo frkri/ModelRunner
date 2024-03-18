@@ -15,12 +15,17 @@ lto = true
 name = "model_runner_cli"
 path = "src/bin/cli.rs"
 
+[[bin]]
+name = "model_runner_health"
+path = "src/bin/health.rs"
+
 [dependencies]
 anyhow = "1.0.81"
 log = "0.4.20"
 env_logger = "0.11.3"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
+reqwest = { version = "0.11.26", features = ["blocking"] }
 axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
@@ -41,3 +46,4 @@ sqlx = { version = "0.7.4", features = ["runtime-tokio", "sqlite", "sqlx-sqlite"
 password-hash = "0.5.0"
 argon2 = "0.5.3"
 base64ct = "1.6.0"
+url = "2.5.0"
