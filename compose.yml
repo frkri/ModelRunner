@@ -11,6 +11,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "25566:25566"
+    healthcheck:
+      test: [
+          "CMD",
+          "/ModelRunner/model_runner_health",
+          "http://localhost:25566/health", # Make sure to change the port and protocol (https / http) to match your setup
+        ]
+      start_period: 10s
+      interval: 60s
+      timeout: 15s
+      retries: 4
     environment:
       - RUST_LOG=info
       - SQLITE_FILE_PATH=/ModelRunner/db/model_runner.db
