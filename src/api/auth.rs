@@ -37,10 +37,12 @@ impl Auth {
         let mut key = [0u8; 64];
         OsRng.fill_bytes(&mut key);
         let key = Base64::encode_string(&key);
+        let key = key.trim_end_matches('=');
 
         let mut id = [0u8; 16];
         OsRng.fill_bytes(&mut id);
         let id = Base64::encode_string(&id);
+        let id = id.trim_end_matches('=');
 
         let salt = SaltString::generate(&mut OsRng);
         let key_hash = self
