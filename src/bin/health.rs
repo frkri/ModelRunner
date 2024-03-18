@@ -1,6 +1,6 @@
+use reqwest::Url;
 use std::env;
 use std::error;
-use reqwest::{Url};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let body = reqwest::blocking::get(url)?;
     if !body.status().is_success() {
-       panic!("Request Failed!")
+        panic!("Request Failed!")
     }
 
     Ok(())
