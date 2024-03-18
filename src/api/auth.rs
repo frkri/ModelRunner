@@ -25,6 +25,9 @@ impl Default for Auth {
 }
 
 impl Auth {
+    /// # Errors
+    ///
+    /// Will return `anyhow:Err` if the hashing or the insertion of the keys fails.
     pub async fn create_api_key(
         &self,
         name: &str,
@@ -73,7 +76,7 @@ impl Auth {
             .await?;
         }
 
-        Ok(format!("{}_{}", id, key))
+        Ok(format!("{id}_{key}"))
     }
 
     pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<bool> {
@@ -94,6 +97,9 @@ impl Auth {
     }
 }
 
+/// # Errors
+///
+/// Will return `anyhow:Err` if headers do no match expected format or the authorization header is missing
 pub fn extract_auth_header(headers: &HeaderMap) -> Result<&str> {
     let header = headers.get("authorization");
     let key = match header {

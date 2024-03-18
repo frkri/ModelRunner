@@ -1,3 +1,13 @@
+#![warn(clippy::correctness)]
+#![warn(clippy::complexity)]
+#![warn(clippy::suspicious)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::cargo)]
+#![warn(clippy::perf)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::cargo_common_metadata)]
+
 use std::net::SocketAddr;
 use std::option::Option;
 use std::time::Duration;
@@ -75,16 +85,16 @@ struct AppState {
 
 lazy_static! {
     static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
-        Api::new().expect("Failed to create API"),
-        ModelBase {
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
             name: "Quantized Phi2".into(),
             license: "MIT".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "lmz/candle-quantized-phi".into(),
             repo_revision: "main".into(),
         },
-        "tokenizer-puffin-phi-v2.json".into(),
-        "model-puffin-phi-v2-q80.gguf".into(),
+        "tokenizer-puffin-phi-v2.json",
+        "model-puffin-phi-v2-q80.gguf",
         mixformer::Config::puffin_phi_v2(),
         GeneralModelConfig::default(),
     )
@@ -92,22 +102,22 @@ lazy_static! {
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
-        ModelBase {
+        &ModelBase {
             name: "Quantized Whisper".into(),
             license: "MIT".into(),
             domain: ModelDomain::Audio(AudioTask::Transcribe),
             repo_id: "lmz/candle-whisper".into(),
             repo_revision: "main".into(),
         },
-        "config-tiny.json".into(),
-        "tokenizer-tiny.json".into(),
-        "model-tiny-q4k.gguf".into(),
-        "melfilters.bytes".into(),
+        "config-tiny.json",
+        "tokenizer-tiny.json",
+        "model-tiny-q4k.gguf",
+        "melfilters.bytes",
     )
     .map_err(|e| error!("Failed to create Whisper model: {}", e))
     .unwrap();
     static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
-        Api::new().expect("Failed to create API"),
+        &Api::new().expect("Failed to create API"),
         ModelBase {
             name: "Quantized Mistral7B".into(),
             license: "Apache 2.0".into(),
@@ -115,14 +125,14 @@ lazy_static! {
             repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF".into(),
             repo_revision: "main".into(),
         },
-        "tokenizer.json".into(),
-        "mistral-7b-instruct-v0.2.Q4_K_S.gguf".into(),
+        "tokenizer.json",
+        "mistral-7b-instruct-v0.2.Q4_K_S.gguf",
         GeneralModelConfig::default(),
     )
     .map_err(|e| error!("Failed to create Mistral7B model: {}", e))
     .unwrap();
     static ref OPENHERMES_MODEL: OpenHermesModel = OpenHermesModel::new(
-        Api::new().expect("Failed to create API"),
+        &Api::new().expect("Failed to create API"),
         ModelBase {
             name: "Quantized OpenHermes-2.5 Mistral7B".into(),
             license: "Apache 2.0".into(),
@@ -130,24 +140,24 @@ lazy_static! {
             repo_id: "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF".into(),
             repo_revision: "main".into(),
         },
-        "tokenizer.json".into(),
-        "openhermes-2.5-mistral-7b.Q4_K_M.gguf".into(),
+        "tokenizer.json",
+        "openhermes-2.5-mistral-7b.Q4_K_M.gguf",
         GeneralModelConfig::default(),
     )
     .map_err(|e| error!("Failed to create OpenHermes model: {}", e))
     .unwrap();
     static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
-        Api::new().expect("Failed to create API"),
-        ModelBase {
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
             name: "Quantized StableLM 2 Zephyr 1.6B".into(),
             license: "StabilityAI Non-Commercial Research Community License".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "lmz/candle-stablelm".into(),
             repo_revision: "main".into(),
         },
-        "tokenizer-gpt4.json".into(),
-        "stablelm-2-zephyr-1_6b-q4k.gguf".into(),
-        GeneralModelConfig::default(),
+        "tokenizer-gpt4.json",
+        "stablelm-2-zephyr-1_6b-q4k.gguf",
+        &GeneralModelConfig::default(),
     )
     .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
     .unwrap();
@@ -256,7 +266,7 @@ async fn main() -> Result<()> {
             axum_server::bind(addr)
                 .handle(shutdown_handle)
                 .serve(router.into_make_service())
-                .await?
+                .await?;
         }
         _ => exit_err!(
             1,
@@ -271,7 +281,7 @@ async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
             .await
-            .expect("Failed to create ctrl-c signal")
+            .expect("Failed to create ctrl-c signal");
     };
 
     #[cfg(unix)]
@@ -289,8 +299,8 @@ async fn shutdown_handler(handle: Handle) {
     let terminate_signal = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
-        _ = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        () = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        () = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
     }
 }
 
@@ -444,7 +454,7 @@ async fn handle_transcribe_request(
                     }
                     opt_request = Some(Json::<TranscribeRequest>::from_bytes(
                         &field.bytes().await?,
-                    )?)
+                    )?);
                 }
                 "audio_content" => {
                     if field
@@ -495,7 +505,7 @@ async fn handle_transcribe_request(
     }
 }
 
-/// As per https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav
+/// As per <https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#wave_wav/>
 static VALID_WAV_MIME_TYPES: [&str; 4] =
     ["audio/wave", "audio/wav", "audio/x-wav", "audio/x-pn-wav"];
 

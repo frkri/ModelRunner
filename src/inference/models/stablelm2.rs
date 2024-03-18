@@ -25,16 +25,16 @@ impl Clone for StableLm2Model {
 
 impl StableLm2Model {
     pub fn new(
-        api: Api,
-        base: ModelBase,
-        tokenizer_filename: String,
-        gguf_filename: String,
-        general_model_config: GeneralModelConfig,
+        api: &Api,
+        base: &ModelBase,
+        tokenizer_filename: &str,
+        gguf_filename: &str,
+        general_model_config: &GeneralModelConfig,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
-            base.repo_id,
+            base.repo_id.clone(),
             RepoType::Model,
-            base.repo_revision,
+            base.repo_revision.clone(),
         ));
         let stablelm_repo = api.repo(Repo::with_revision(
             "stabilityai/stablelm-2-zephyr-1_6b".into(),
@@ -45,11 +45,11 @@ impl StableLm2Model {
         let config: Config = serde_json::from_str(&config)?;
 
         let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf_config(
-            repo,
-            Model::StableLm(None),
+            &repo,
+            &Model::StableLm(None),
             ModelConfig::StableLm(config),
-            tokenizer_filename.as_str(),
-            gguf_filename.as_str(),
+            tokenizer_filename,
+            gguf_filename,
             general_model_config.seed,
             general_model_config.temperature,
             general_model_config.top_p,

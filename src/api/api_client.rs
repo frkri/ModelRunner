@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use tokio::try_join;
 
 #[allow(dead_code)]
-#[derive(Deserialize, Serialize)]
+#[derive(Serialize)]
 pub(crate) struct ApiClient {
     pub(crate) id: String,
     pub(crate) name: Option<String>,
@@ -48,7 +48,7 @@ pub(crate) struct ApiClientUpdateRequest {
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum)]
+#[derive(PartialEq, Deserialize, Serialize, Clone, Copy, Debug, ValueEnum)]
 pub enum Permission {
     Use,
     Status,

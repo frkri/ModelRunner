@@ -1,3 +1,6 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_possible_truncation)]
+
 use std::io::Cursor;
 
 use anyhow::{bail, Result};
@@ -58,7 +61,7 @@ impl Clone for AudioGeneratorPipeline {
 
 impl AudioGeneratorPipeline {
     pub fn with_gguf_model(
-        repo: ApiRepo,
+        repo: &ApiRepo,
         config_filename: &str,
         tokenizer_filename: &str,
         gguf_filename: &str,
@@ -96,10 +99,10 @@ impl AudioGeneratorPipeline {
             })
             .collect();
         let suppress_tokens = Tensor::new(suppress_tokens.as_slice(), &Device::Cpu)?;
-        let sot_token = token_id(&tokenizer, SOT_TOKEN)?;
+        let start_of_transcript_token = token_id(&tokenizer, SOT_TOKEN)?;
         let transcribe_token = token_id(&tokenizer, TRANSCRIBE_TOKEN)?;
         let translate_token = token_id(&tokenizer, TRANSLATE_TOKEN)?;
-        let eot_token = token_id(&tokenizer, EOT_TOKEN)?;
+        let end_of_text_token = token_id(&tokenizer, EOT_TOKEN)?;
         let no_speech_token = NO_SPEECH_TOKENS
             .iter()
             .find_map(|token| token_id(&tokenizer, token).ok());
@@ -114,10 +117,10 @@ impl AudioGeneratorPipeline {
             config,
             mel_filters,
             suppress_tokens,
-            sot_token,
+            sot_token: start_of_transcript_token,
             transcribe_token,
             translate_token,
-            eot_token,
+            eot_token: end_of_text_token,
             no_speech_token,
             no_timestamps_token,
             timestamps,
@@ -130,9 +133,8 @@ impl AudioGeneratorPipeline {
         let (_, _, content_frames) = mel.dims3()?;
         let mut seek = 0;
         let mut segments = vec![];
-        let language_token = match token_id(&self.tokenizer, &format!("<|{language_token}|>")) {
-            Ok(token_id) => token_id,
-            Err(_) => bail!("language {language_token} is not supported"),
+        let Ok(language_token) = token_id(&self.tokenizer, &format!("<|{language_token}|>")) else {
+            bail!("language {language_token} is not supported")
         };
 
         while seek < content_frames {
@@ -151,7 +153,7 @@ impl AudioGeneratorPipeline {
                 duration: segment_duration,
                 dr,
             };
-            segments.push(segment)
+            segments.push(segment);
         }
         Ok(segments)
     }
@@ -176,7 +178,7 @@ impl AudioGeneratorPipeline {
                     }
                 }
                 Err(err) => {
-                    error!("Error running at {t}: {err}")
+                    error!("Error running at {t}: {err}");
                 }
             }
         }
@@ -210,9 +212,11 @@ impl AudioGeneratorPipeline {
             // token logits and the probability for the according token.
             if i == 0 {
                 let logits = model.decoder.final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;
-                no_speech_prob = softmax(&logits, 0)?
-                    .i(self.no_speech_token as usize)?
-                    .to_scalar::<f32>()? as f64;
+                no_speech_prob = f64::from(
+                    softmax(&logits, 0)?
+                        .i(self.no_speech_token as usize)?
+                        .to_scalar::<f32>()?,
+                );
             }
 
             let (_, seq_len, _) = ys.dims3()?;
@@ -226,7 +230,7 @@ impl AudioGeneratorPipeline {
                 let prs = softmax(&(&logits / t)?, 0)?;
                 let logits_v: Vec<f32> = prs.to_vec1()?;
                 let distr = rand::distributions::WeightedIndex::new(&logits_v)?;
-                distr.sample(&mut self.seed) as u32
+                u32::try_from(distr.sample(&mut self.seed))?
             } else {
                 let logits_v: Vec<f32> = logits.to_vec1()?;
                 logits_v
@@ -237,9 +241,11 @@ impl AudioGeneratorPipeline {
                     .unwrap()
             };
             tokens.push(next_token);
-            let prob = softmax(&logits, D::Minus1)?
-                .i(next_token as usize)?
-                .to_scalar::<f32>()? as f64;
+            let prob = f64::from(
+                softmax(&logits, D::Minus1)?
+                    .i(next_token as usize)?
+                    .to_scalar::<f32>()?,
+            );
             if next_token == self.eot_token || tokens.len() > model.config.max_target_positions {
                 break;
             }
@@ -260,7 +266,7 @@ impl AudioGeneratorPipeline {
     fn load_mel(&self, input: Box<[u8]>) -> Result<Tensor> {
         let cursor = Cursor::new(input);
         let (pcm_data, sample_rate) = pcm_decode(cursor)?;
-        if sample_rate != SAMPLE_RATE as u32 {
+        if sample_rate != u32::try_from(SAMPLE_RATE)? {
             bail!("Input file must have a {} sampling rate", SAMPLE_RATE)
         }
         debug!("pcm data loaded {}", pcm_data.len());

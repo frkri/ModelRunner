@@ -2,6 +2,11 @@
 name = "model_runner"
 version = "1.1.0"
 edition = "2021"
+repository = "https://github.com/frkri/ModelRunner"
+license = "MIT"
+description = "Allow hosting of LLM models with a REST API"
+keywords = ["LLM", "API", "HTTP"]
+readme = "README.md"
 
 [profile.dev]
 opt-level = 3 # Required as otherwise the models are too slow to run

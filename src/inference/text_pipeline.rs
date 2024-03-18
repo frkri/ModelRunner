@@ -77,8 +77,8 @@ impl Clone for TextGeneratorPipeline {
 impl TextGeneratorPipeline {
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf_config(
-        repo: ApiRepo,
-        model: Model,
+        repo: &ApiRepo,
+        model: &Model,
         config: ModelConfig,
         tokenizer_filename: &str,
         gguf_filename: &str,
@@ -95,22 +95,20 @@ impl TextGeneratorPipeline {
         let vb = VarBuilder::from_gguf(gguf_file, &device)?;
         let model = match model {
             Model::Phi(_) => {
-                let config = match config {
-                    ModelConfig::Phi(config) => config,
-                    _ => bail!("Invalid model config"),
+                let ModelConfig::Phi(config) = config else {
+                    bail!("Invalid model config")
                 };
                 let model = Phi2::new(&config, vb)?;
                 Model::Phi(Some(model))
             }
             Model::StableLm(_) => {
-                let config = match config {
-                    ModelConfig::StableLm(config) => config,
-                    _ => bail!("Invalid model config"),
+                let ModelConfig::StableLm(config) = config else {
+                    bail!("Invalid model config")
                 };
                 let model = QStableLM::new(&config, vb)?;
                 Model::StableLm(Some(model))
             }
-            _ => bail!("Invalid model"),
+            Model::Mistral(_) => bail!("Invalid model"),
         };
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
@@ -131,7 +129,7 @@ impl TextGeneratorPipeline {
 
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf(
-        repo: ApiRepo,
+        repo: &ApiRepo,
         tokenizer_file: PathBuf,
         gguf_filename: &str,
         seed: Option<u64>,
@@ -165,7 +163,7 @@ impl TextGeneratorPipeline {
     }
     pub fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64)> {
         if let Model::Phi(Some(ref mut m)) = self.model {
-            m.clear_kv_cache()
+            m.clear_kv_cache();
         }
         self.tokenizer.clear();
         let mut tokens = self
@@ -212,7 +210,7 @@ impl TextGeneratorPipeline {
                 Model::Mistral(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::StableLm(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
             };
-            let logits = if self.repeat_penalty == 1. {
+            let logits = if (self.repeat_penalty - 1.).abs() < f32::EPSILON {
                 logits
             } else {
                 let start_at = tokens.len().saturating_sub(self.repeat_context_size);
