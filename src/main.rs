@@ -1,3 +1,10 @@
+#![warn(clippy::correctness)]
+#![warn(clippy::complexity)]
+#![warn(clippy::suspicious)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::cargo)]
+#![warn(clippy::perf)]
+
 use std::net::SocketAddr;
 use std::option::Option;
 use std::time::Duration;
