@@ -32,6 +32,7 @@ impl Auth {
         &self,
         name: &str,
         permission: &Vec<Permission>,
+        creator_id: &Option<String>,
         pool: &SqlitePool,
     ) -> Result<String> {
         let mut key = [0u8; 64];
@@ -57,12 +58,13 @@ impl Auth {
             .try_into()?;
         sqlx::query_as!(
             ApiClient,
-            "INSERT INTO api_clients (id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO api_clients (id, name, key, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?)",
             id,
             name,
             key_hash,
             unix_now,
             unix_now,
+            creator_id
         )
         .execute(pool)
         .await?;

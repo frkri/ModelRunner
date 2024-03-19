@@ -356,7 +356,12 @@ async fn handle_create_request(
     client.has_permission(Permission::Create)?;
     let key = state
         .auth
-        .create_api_key(&req.name, &req.permissions, &state.db_pool)
+        .create_api_key(
+            &req.name,
+            &req.permissions,
+            &Some(client.id),
+            &state.db_pool,
+        )
         .await?;
     Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
 }

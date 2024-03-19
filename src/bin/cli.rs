@@ -29,6 +29,10 @@ enum Commands {
         #[clap(short, long)]
         name: String,
 
+        /// Creator ID
+        #[clap(short, long)]
+        creator_id: Option<String>,
+
         /// Scope of permission that the key will have
         #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::Status, Permission::Use])]
         permission: Vec<Permission>,
@@ -49,10 +53,14 @@ async fn main() -> Result<()> {
     let state = AppState { db_pool, auth };
 
     match args.cmd {
-        Commands::GenerateKey { name, permission } => {
+        Commands::GenerateKey {
+            name,
+            permission,
+            creator_id,
+        } => {
             let key = state
                 .auth
-                .create_api_key(name.as_str(), &permission, &state.db_pool)
+                .create_api_key(name.as_str(), &permission, &creator_id, &state.db_pool)
                 .await?;
             println!(
                 "Generated new API key with {:#?} permissions\n{}",

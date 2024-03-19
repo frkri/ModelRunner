@@ -18,6 +18,7 @@ pub(crate) struct ApiClient {
     pub(crate) permissions: Vec<Permission>,
     pub(crate) created_at: i64,
     pub(crate) updated_at: i64,
+    pub(crate) created_by: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -112,7 +113,7 @@ impl Into<i64> for &Permission {
 impl ApiClient {
     pub(crate) async fn from(id: &str, pool: &SqlitePool) -> Result<Self> {
         let half_client = sqlx::query!(
-            "SELECT id, name, key, created_at, updated_at FROM api_clients WHERE id = ?",
+            "SELECT id, name, key, created_at, updated_at, created_by FROM api_clients WHERE id = ?",
             id
         )
         .fetch_one(pool);
@@ -133,6 +134,7 @@ impl ApiClient {
             key: half_client.key,
             created_at: half_client.created_at,
             updated_at: half_client.updated_at,
+            created_by: half_client.created_by,
             permissions,
         };
 
@@ -149,15 +151,16 @@ impl ApiClient {
     }
 
     pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
-        let client_delete =
-            sqlx::query!("DELETE FROM api_clients WHERE id = ?", self.id).execute(pool);
-        let permission_delete = sqlx::query!(
+        sqlx::query!(
             "DELETE FROM api_client_permission_scopes where api_client_id = ?",
             self.id
         )
-        .execute(pool);
+        .execute(pool)
+        .await?;
+        sqlx::query!("DELETE FROM api_clients WHERE id = ?", self.id)
+            .execute(pool)
+            .await?;
 
-        try_join!(client_delete, permission_delete)?;
         Ok(())
     }
 
