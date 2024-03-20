@@ -1,0 +1,14 @@
+version: '3.9'
+include:
+  - ../compose.yml
+
+services:
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
+    command: --interval 600 # Every 10 minutes
+
