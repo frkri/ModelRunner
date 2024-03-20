@@ -12,7 +12,7 @@ use sqlx::SqlitePool;
 
 use crate::api::api_client::Permission;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Auth {
     argon: Argon2<'static>,
 }

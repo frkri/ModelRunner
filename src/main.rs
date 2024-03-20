@@ -25,12 +25,13 @@ use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
-use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
-use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+use tracing::instrument;
+use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
 
 use crate::api::api_client::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
@@ -58,12 +59,14 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+use crate::telemetry::init_telemetry;
 
 pub mod api;
 mod config;
 pub mod error;
 mod extractors;
 mod inference;
+mod telemetry;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -77,7 +80,7 @@ struct Args {
     pub opt_config: <Config as ClapSerde>::Opt,
 }
 
-#[derive(Clone, FromRef)]
+#[derive(Debug, Clone, FromRef)]
 struct AppState {
     db_pool: SqlitePool,
     auth: Auth,
@@ -163,10 +166,10 @@ lazy_static! {
     .unwrap();
 }
 
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
+#[instrument]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
     let args = Args::parse();
     let config = match Config::from_toml(&args.config_file) {
         Ok(conf) => conf.merge(args.opt_config),
@@ -183,6 +186,26 @@ async fn main() -> Result<()> {
             }
         }
     };
+
+    if let Some(endpoint) = config.otel_endpoint {
+        init_telemetry(endpoint);
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO")))
+            .init();
+    }
+
+    info!(
+        "model_runner v{}",
+        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+    );
+    info!(
+        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
+        candle_core::utils::with_avx(),
+        candle_core::utils::with_neon(),
+        candle_core::utils::with_simd128(),
+        candle_core::utils::with_f16c()
+    );
 
     let sqlite_options = SqliteConnectOptions::new()
         .create_if_missing(true)
@@ -228,18 +251,6 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
-    info!(
-        "model_runner v{}",
-        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
-    );
-    info!("Listening on {}", addr);
-    info!(
-        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
-        candle_core::utils::with_avx(),
-        candle_core::utils::with_neon(),
-        candle_core::utils::with_simd128(),
-        candle_core::utils::with_f16c()
-    );
 
     let shutdown_handle = Handle::new();
     tokio::spawn(shutdown_handler(shutdown_handle.clone()));
@@ -295,8 +306,10 @@ async fn shutdown_handler(handle: Handle) {
         () = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
         () = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
     }
+    opentelemetry::global::shutdown_tracer_provider();
 }
 
+#[instrument(skip_all)]
 async fn auth_middleware(
     State(state): State<AppState>,
     request: Request,

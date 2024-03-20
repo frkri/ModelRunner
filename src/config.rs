@@ -12,6 +12,10 @@ pub struct Config {
     #[arg(short, long, env, default_value = "25566")]
     pub port: u16,
 
+    // The OpenTelemetry collector endpoint
+    #[arg(short, long, env)]
+    pub otel_endpoint: Option<String>,
+
     /// The TLS configuration
     #[serde(default)]
     #[command(flatten)]

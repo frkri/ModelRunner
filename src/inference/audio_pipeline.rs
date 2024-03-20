@@ -15,10 +15,10 @@ use candle_transformers::models::whisper::{
 };
 use candle_transformers::quantized_var_builder::VarBuilder;
 use hf_hub::api::sync::ApiRepo;
-use log::{debug, error};
 use rand::distributions::Distribution;
 use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
+use tracing::{debug, error};
 
 use crate::inference::pcm_decode::pcm_decode;
 
