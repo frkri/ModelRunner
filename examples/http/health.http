@@ -1,0 +1,2 @@
+### Check current health
+GET http://{{host}}:{{port}}/health
