@@ -1,0 +1,7 @@
+# Full deployment config
+version: "3.9"
+include:
+  - cf-tunnel/compose.yml
+  - grafana/compose.yml
+  - watchtower/compose.yml
+

@@ -1,0 +1,23 @@
+version: "3.9"
+include:
+  - ../compose.yml
+
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana-oss
+    restart: unless-stopped
+    user: '0'
+    ports:
+      - '3000:3000'
+    volumes:
+      - '/var/lib/model-runner/grafana:/var/lib/grafana'
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
