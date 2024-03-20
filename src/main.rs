@@ -201,34 +201,27 @@ async fn main() -> Result<()> {
 
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
-        .route("/instruct", post(handle_instruct_request))
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ));
+        .route("/instruct", post(handle_instruct_request));
+
     let audio_router = Router::new()
         .route("/transcribe", post(handle_transcribe_request))
         // 10 MB limit
-        .layer(DefaultBodyLimit::max(10_000_000))
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ));
+        .layer(DefaultBodyLimit::max(10_000_000));
 
     let auth_router = Router::new()
         .route("/status", post(handle_status_request))
         .route("/create", post(handle_create_request))
         .route("/delete", post(handle_delete_request))
-        .route("/update", post(handle_update_request))
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ));
+        .route("/update", post(handle_update_request));
 
     let router = Router::new()
         .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth_middleware,
+        ))
         .route("/health", get(handle_health_request))
         .with_state(app_state);
 
