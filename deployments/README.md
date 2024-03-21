@@ -1,7 +1,6 @@
 # Deployments with Docker Compose
 
 This directory provides various ways to deploy modelrunner using Docker Compose
-This is made possible using the [include](https://docs.docker.com/compose/multiple-compose-files/include/) element
 
 ## Getting started
 
@@ -14,22 +13,17 @@ docker compose up -d
 docker compose rm -sf
 ```
 
-The full opinionated compose file [`compose.full.yml`](compose.full.yml) contains multiple external containers that integrate / co-exist with modelrunner.
+## Custom combinations of compose files
+
+In this example both the [`traefik`](traefik/compose.yml) and [`watchtower`](watchtower/compose.yml) compose files
+depend on the base [`compose.yml`](compose.yml) file meaning that modelrunner is always included.
+> [!NOTE]
+> The order of compose files matter when using the `-f` flag! In this case traefik must come first in the sequence
+> followed by others due to [`compose.override.yml`](traefik/compose.override.yml)
 
 ```bash
 # Startup
-docker compose -f compose.full.yml up -d
+docker compose -f traefik/compose.yml -f watchtower/compose.yml up -d
 # Cleanup
-docker compose -f compose.full.yml rm -sf
-```
-
-## Custom compose file
-
-In this example both the [`watchtower`](watchtower/compose.yml) and [`cf-tunnel`](cf-tunnel/compose.yml) compose files depend on the base [`compose.yml`](compose.yml) file meaning that modelrunner is always included.
-
-```bash
-# Startup
-docker compose -f watchtower/compose.yml -f cf-tunnel/compose.yml up -d
-# Cleanup
-docker compose  -f watchtower/compose.yml -f cf-tunnel/compose.yml rm -sf
+docker compose -f traefik/compose.yml -f watchtower/compose.yml rm -sf
 ```
