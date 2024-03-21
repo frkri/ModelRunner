@@ -1,12 +1,11 @@
 # Base deployment config
-version: "3.9"
 name: model_runner_service
 
 services:
-  model_runner:
+  modelrunner:
     # Find other image types under: https://github.com/frkri/ModelRunner/pkgs/container/modelrunner
     image: ghcr.io/frkri/modelrunner:latest
-    container_name: model_runner
+    container_name: modelrunner
     build:
       context: ../
       dockerfile: Dockerfile
@@ -18,10 +17,10 @@ services:
           "/ModelRunner/model_runner_health",
           "http://localhost:25566/health", # Make sure to change the port and protocol (https / http) to match your setup
         ]
-      start_period: 10s
-      interval: 60s
+      start_period: 5s
+      interval: 30s
       timeout: 15s
-      retries: 4
+      retries: 3
     environment:
       - RUST_LOG=info
       - SQLITE_FILE_PATH=/ModelRunner/db/model_runner.db
@@ -34,6 +33,8 @@ services:
     volumes:
       - /var/cache/hf-cache:/ModelRunner/hf-cache # Cache dir for the downloaded files (models and other files) from Hugging Face, to be used with the HF_HOME environment variable
       - /var/lib/model-runner:/ModelRunner/db # Database dir for the SQLite database file, to be used with the SQLITE_FILE_PATH environment variable
+    networks:
+      - mesh
     # configs:
     #  - source: model_runner_config
     #    target: /ModelRunner/ModelRunner.toml
@@ -51,3 +52,6 @@ secrets:
     file: ./path/to/your/cert.file
   key-file:
     file: ./path/to/your/key.file
+
+networks:
+  mesh:

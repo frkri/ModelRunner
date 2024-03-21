@@ -1,6 +1,6 @@
-version: '3.9'
 include:
-  - ../compose.yml
+  - path:
+      - ../compose.yml
 
 services:
   cloudflare-tunnel:
@@ -10,3 +10,5 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=<YOUR_TOKEN>
+    networks:
+      - mesh

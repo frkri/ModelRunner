@@ -1,6 +1,6 @@
-version: "3.9"
 include:
-  - ../compose.yml
+  - path:
+      - ../compose.yml
 
 services:
   grafana:
@@ -12,6 +12,8 @@ services:
       - '3000:3000'
     volumes:
       - '/var/lib/model-runner/grafana:/var/lib/grafana'
+    networks:
+      - mesh
 
   prometheus:
     container_name: prometheus
@@ -20,4 +22,6 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../grafana/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - mesh
