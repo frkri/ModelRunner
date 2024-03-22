@@ -10,6 +10,7 @@ fn main() -> ExitCode {
 
     let client = reqwest::blocking::Client::builder()
         .use_rustls_tls()
+        .danger_accept_invalid_certs(true)
         .build()
         .unwrap();
 

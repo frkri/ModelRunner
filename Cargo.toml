@@ -1,6 +1,6 @@
 [package]
 name = "model_runner"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 repository = "https://github.com/frkri/ModelRunner"
 license = "MIT"
@@ -35,7 +35,7 @@ opentelemetry-otlp = { version = "0.15.0", features = ["tonic"] }
 opentelemetry-semantic-conventions = "0.14.0"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
-reqwest = { version = "0.11.26", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.12.0", default-features = false, features = ["blocking", "rustls-tls"] }
 axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
