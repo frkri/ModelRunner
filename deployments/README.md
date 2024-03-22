@@ -39,6 +39,4 @@ Here the first method is used as an example here.
 [`cloudflare tunnel`](cf-tunnel/compose.yml) can be setup to forward request to [`traefik`](traefik/compose.yml) by specifying the target service to `http://traefik:80`,
 where traefik is the name of the service defined in the [`docker compose file`](traefik/compose.yml) and the port on which traefik listens to for requests.
 > [!NOTE]
-> Make sure to change the [tunnel-secret.txt](cf-tunnel/tunnel-secret.txt) file to match your tunnel token
-
-
+> Make sure to change the environment variable to match your tunnel token
