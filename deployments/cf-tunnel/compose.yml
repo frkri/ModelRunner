@@ -9,12 +9,6 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      TUNNEL_TOKEN: /run/secrets/tunnel-token
-    secrets:
-      - tunnel-token
+      TUNNEL_TOKEN: <YOUR_TOKEN>
     networks:
       - mesh
-
-secrets:
-  tunnel-token:
-    file: tunnel-secret.txt
