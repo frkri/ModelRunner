@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     command:
       # - "--log.level=DEBUG"
-      - "--api.insecure=true" # Dashboard can be enabled here
+      # - "--api.insecure=true" # API and Dashboard can be enabled here
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"

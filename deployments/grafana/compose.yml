@@ -12,6 +12,11 @@ services:
       - '3000:3000'
     volumes:
       - '/var/lib/model-runner/grafana:/var/lib/grafana'
+      - '../grafana/grafana.ini:/etc/grafana/grafana.ini'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`) || PathPrefix(`/grafana`)"
     networks:
       - mesh
 

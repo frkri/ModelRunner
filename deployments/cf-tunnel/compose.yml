@@ -9,6 +9,6 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=<YOUR_TOKEN>
+      - TUNNEL_TOKEN=<YOUR_TUNNEL_TOKEN>
     networks:
       - mesh
