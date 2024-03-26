@@ -3,5 +3,6 @@
 .github/
 /target
 /examples
+/deployments
 .gitignore
 .cargo
