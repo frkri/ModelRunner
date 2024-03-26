@@ -28,11 +28,12 @@ path = "src/bin/health.rs"
 anyhow = "1.0.81"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
-tracing-opentelemetry = "0.23.0"
-opentelemetry = "0.22.0"
-opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.15.0", features = ["tonic"] }
+tracing-opentelemetry = { version = "0.23.0", features = ["metrics"] }
+opentelemetry = { version = "0.22.0", features = ["metrics"] }
+opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio", "metrics", "trace"] }
+opentelemetry-otlp = { version = "0.15.0", features = ["tonic", "metrics", "trace"] }
 opentelemetry-semantic-conventions = "0.14.0"
+tower-http = { version = "0.5.2", features = ["trace"] }
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
 reqwest = { version = "0.12.0", default-features = false, features = ["blocking", "rustls-tls"] }

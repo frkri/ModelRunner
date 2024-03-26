@@ -10,7 +10,7 @@
 
 use std::net::SocketAddr;
 use std::option::Option;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
@@ -29,9 +29,10 @@ use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+use tower_http::trace::TraceLayer;
+use tracing::debug;
 use tracing::instrument;
 use tracing::{error, info, warn};
-use tracing_subscriber::EnvFilter;
 
 use crate::api::api_client::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
@@ -60,6 +61,7 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 use crate::telemetry::init_telemetry;
+use crate::telemetry::shutdown_meter_provider;
 
 pub mod api;
 mod config;
@@ -187,14 +189,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    if let Some(endpoint) = config.otel_endpoint {
-        init_telemetry(endpoint);
-    } else {
-        tracing_subscriber::fmt()
-            .with_env_filter(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO")))
-            .init();
-    }
-
+    init_telemetry(&config.otel_endpoint, config.otel_compress);
     info!(
         "model_runner v{}",
         option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
@@ -246,11 +241,14 @@ async fn main() -> Result<()> {
             auth_middleware,
         ))
         .route("/health", get(handle_health_request))
+        .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(track_metrics))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
+    info!("Listening on {}", addr);
 
     let shutdown_handle = Handle::new();
     tokio::spawn(shutdown_handler(shutdown_handle.clone()));
@@ -303,10 +301,19 @@ async fn shutdown_handler(handle: Handle) {
     let terminate_signal = std::future::pending::<()>();
 
     tokio::select! {
-        () = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
-        () = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        () = ctrl_c_signal => {
+                // todo
+                //shutdown_meter_provider();
+                //global::shutdown_tracer_provider();
+                handle.graceful_shutdown(Some(Duration::from_secs(45)));
+        },
+        () = terminate_signal => {
+                // todo
+                //shutdown_meter_provider();
+                //global::shutdown_tracer_provider();
+                handle.graceful_shutdown(Some(Duration::from_secs(45)));
+        }
     }
-    opentelemetry::global::shutdown_tracer_provider();
 }
 
 #[instrument(skip_all)]
@@ -327,7 +334,27 @@ async fn auth_middleware(
     let (id, _) = extract_id_key(header_value)?;
     let client = ApiClient::from(id, &state.db_pool).await?;
     client.has_permission(Permission::Use)?;
+
+    info!(monotonic_counter.requests_authorized = 1);
+    debug!(target: "authorization", ?id, "Client authorized");
     Ok(next.run(request).await)
+}
+
+#[instrument(skip_all)]
+async fn track_metrics(req: Request, next: Next) -> ModelResult<Response> {
+    let start = Instant::now();
+    let path = req.uri().path().to_owned();
+    let method = req.method().clone();
+    let response = next.run(req).await;
+
+    info!(monotonic_counter.requests_total = 1, path, ?method);
+    info!(
+        histogram.requests_duration = start.elapsed().as_secs_f64(),
+        ?method,
+        path
+    );
+
+    Ok(response)
 }
 
 #[axum_macros::debug_handler]

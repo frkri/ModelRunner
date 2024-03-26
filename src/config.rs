@@ -12,9 +12,13 @@ pub struct Config {
     #[arg(short, long, env, default_value = "25566")]
     pub port: u16,
 
-    // The OpenTelemetry collector endpoint
+    /// The OpenTelemetry collector endpoint, enables telemetry
     #[arg(short, long, env)]
     pub otel_endpoint: Option<String>,
+
+    /// Should OpenTelemetry data be compressed before transmission
+    #[arg(long, env)]
+    pub otel_compress: bool,
 
     /// The TLS configuration
     #[serde(default)]
