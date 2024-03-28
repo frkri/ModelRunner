@@ -20,6 +20,10 @@ pub struct Config {
     #[arg(long, env)]
     pub otel_compress: bool,
 
+    /// Should the console always be enabled even if the otel-endpoint is specified
+    #[arg(long, env)]
+    pub console: bool,
+
     /// The TLS configuration
     #[serde(default)]
     #[command(flatten)]

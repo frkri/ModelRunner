@@ -18,7 +18,7 @@ use tracing_subscriber::Registry;
 
 static METER: OnceLock<SdkMeterProvider> = OnceLock::new();
 
-pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool) {
+pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console: bool) {
     let service_resource = Resource::new(vec![
         KeyValue::new(SERVICE_NAME, env!("CARGO_PKG_NAME")),
         KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
@@ -42,12 +42,16 @@ pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool) {
     METER.set(meter.clone()).unwrap();
 
     global::set_text_map_propagator(TraceContextPropagator::new());
-    Registry::default()
+    let registry = Registry::default()
         .with(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO")))
-        .with(tracing_subscriber::fmt::layer())
         .with(OpenTelemetryLayer::new(tracer))
-        .with(MetricsLayer::new(meter))
-        .init();
+        .with(MetricsLayer::new(meter));
+
+    if endpoint.is_none() || console {
+        registry.with(tracing_subscriber::fmt::layer()).init();
+    } else {
+        registry.init();
+    }
 }
 
 fn build_tonic_exporter(endpoint: &Option<String>, compress: bool) -> TonicExporterBuilder {
