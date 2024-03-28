@@ -10,7 +10,7 @@
 
 use std::net::SocketAddr;
 use std::option::Option;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
@@ -25,12 +25,14 @@ use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
-use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
-use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+use tower_http::trace::TraceLayer;
+use tracing::debug;
+use tracing::instrument;
+use tracing::{error, info, warn};
 
 use crate::api::api_client::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
@@ -58,12 +60,15 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+use crate::telemetry::init_telemetry;
+use crate::telemetry::shutdown_meter_provider;
 
 pub mod api;
 mod config;
 pub mod error;
 mod extractors;
 mod inference;
+mod telemetry;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -77,7 +82,7 @@ struct Args {
     pub opt_config: <Config as ClapSerde>::Opt,
 }
 
-#[derive(Clone, FromRef)]
+#[derive(Debug, Clone, FromRef)]
 struct AppState {
     db_pool: SqlitePool,
     auth: Auth,
@@ -163,10 +168,10 @@ lazy_static! {
     .unwrap();
 }
 
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
+#[instrument]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
     let args = Args::parse();
     let config = match Config::from_toml(&args.config_file) {
         Ok(conf) => conf.merge(args.opt_config),
@@ -183,6 +188,19 @@ async fn main() -> Result<()> {
             }
         }
     };
+
+    init_telemetry(&config.otel_endpoint, config.otel_compress, config.console);
+    info!(
+        "model_runner v{}",
+        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+    );
+    info!(
+        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
+        candle_core::utils::with_avx(),
+        candle_core::utils::with_neon(),
+        candle_core::utils::with_simd128(),
+        candle_core::utils::with_f16c()
+    );
 
     let sqlite_options = SqliteConnectOptions::new()
         .create_if_missing(true)
@@ -223,23 +241,14 @@ async fn main() -> Result<()> {
             auth_middleware,
         ))
         .route("/health", get(handle_health_request))
+        .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(track_metrics))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
-    info!(
-        "model_runner v{}",
-        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
-    );
     info!("Listening on {}", addr);
-    info!(
-        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
-        candle_core::utils::with_avx(),
-        candle_core::utils::with_neon(),
-        candle_core::utils::with_simd128(),
-        candle_core::utils::with_f16c()
-    );
 
     let shutdown_handle = Handle::new();
     tokio::spawn(shutdown_handler(shutdown_handle.clone()));
@@ -292,11 +301,22 @@ async fn shutdown_handler(handle: Handle) {
     let terminate_signal = std::future::pending::<()>();
 
     tokio::select! {
-        () = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
-        () = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        () = ctrl_c_signal => {
+                // todo
+                //shutdown_meter_provider();
+                //global::shutdown_tracer_provider();
+                handle.graceful_shutdown(Some(Duration::from_secs(45)));
+        },
+        () = terminate_signal => {
+                // todo
+                //shutdown_meter_provider();
+                //global::shutdown_tracer_provider();
+                handle.graceful_shutdown(Some(Duration::from_secs(45)));
+        }
     }
 }
 
+#[instrument(skip_all)]
 async fn auth_middleware(
     State(state): State<AppState>,
     request: Request,
@@ -314,7 +334,27 @@ async fn auth_middleware(
     let (id, _) = extract_id_key(header_value)?;
     let client = ApiClient::from(id, &state.db_pool).await?;
     client.has_permission(Permission::Use)?;
+
+    info!(monotonic_counter.requests_authorized = 1);
+    debug!(target: "authorization", ?id, "Client authorized");
     Ok(next.run(request).await)
+}
+
+#[instrument(skip_all)]
+async fn track_metrics(req: Request, next: Next) -> ModelResult<Response> {
+    let start = Instant::now();
+    let path = req.uri().path().to_owned();
+    let method = req.method().clone();
+    let response = next.run(req).await;
+
+    info!(monotonic_counter.requests_total = 1, path, ?method);
+    info!(
+        histogram.requests_duration = start.elapsed().as_secs_f64(),
+        ?method,
+        path
+    );
+
+    Ok(response)
 }
 
 #[axum_macros::debug_handler]
