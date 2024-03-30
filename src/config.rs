@@ -16,10 +16,6 @@ pub struct Config {
     #[arg(short, long, env)]
     pub otel_endpoint: Option<String>,
 
-    /// Should OpenTelemetry data be compressed before transmission
-    #[arg(long, env)]
-    pub otel_compress: bool,
-
     /// Should the console always be enabled even if the otel-endpoint is specified
     #[arg(long, env)]
     pub console: bool,

@@ -188,7 +188,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    init_telemetry(&config.otel_endpoint, config.otel_compress, config.console);
+    init_telemetry(&config.otel_endpoint, config.console);
     info!(
         "model_runner v{}",
         option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")

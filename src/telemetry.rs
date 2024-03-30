@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::Context;
 use opentelemetry::global;
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::{Compression, TonicExporterBuilder, WithExportConfig};
+use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, Resource};
@@ -14,7 +14,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
 
-pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console: bool) {
+pub(crate) fn init_telemetry(endpoint: &Option<String>, console: bool) {
     let service_resource = Resource::new(vec![
         KeyValue::new(SERVICE_NAME, env!("CARGO_PKG_NAME")),
         KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
@@ -22,7 +22,7 @@ pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console:
 
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_exporter(build_tonic_exporter(endpoint, compress))
+        .with_exporter(build_tonic_exporter(endpoint))
         .with_trace_config(Config::default().with_resource(service_resource.clone()))
         .install_batch(runtime::Tokio)
         .context("Failed to install tracer")
@@ -30,7 +30,7 @@ pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console:
 
     let meter = opentelemetry_otlp::new_pipeline()
         .metrics(runtime::Tokio)
-        .with_exporter(build_tonic_exporter(endpoint, compress))
+        .with_exporter(build_tonic_exporter(endpoint))
         .with_resource(service_resource)
         .build()
         .context("Failed to install meter")
@@ -49,16 +49,13 @@ pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console:
     }
 }
 
-fn build_tonic_exporter(endpoint: &Option<String>, compress: bool) -> TonicExporterBuilder {
+fn build_tonic_exporter(endpoint: &Option<String>) -> TonicExporterBuilder {
     let mut exporter = opentelemetry_otlp::new_exporter()
         .tonic()
         .with_timeout(Duration::from_secs(15));
 
     if let Some(endpoint) = endpoint {
         exporter = exporter.with_endpoint(endpoint);
-    }
-    if compress {
-        exporter = exporter.with_compression(Compression::Gzip);
     }
 
     exporter
