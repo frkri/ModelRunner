@@ -61,7 +61,6 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 use crate::telemetry::init_telemetry;
-use crate::telemetry::shutdown_meter_provider;
 
 pub mod api;
 mod config;
@@ -301,18 +300,8 @@ async fn shutdown_handler(handle: Handle) {
     let terminate_signal = std::future::pending::<()>();
 
     tokio::select! {
-        () = ctrl_c_signal => {
-                // todo
-                //shutdown_meter_provider();
-                //global::shutdown_tracer_provider();
-                handle.graceful_shutdown(Some(Duration::from_secs(45)));
-        },
-        () = terminate_signal => {
-                // todo
-                //shutdown_meter_provider();
-                //global::shutdown_tracer_provider();
-                handle.graceful_shutdown(Some(Duration::from_secs(45)));
-        }
+        () = ctrl_c_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
+        () = terminate_signal => handle.graceful_shutdown(Some(Duration::from_secs(45))),
     }
 }
 

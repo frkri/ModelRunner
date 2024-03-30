@@ -1,11 +1,9 @@
-use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::Context;
 use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{Compression, TonicExporterBuilder, WithExportConfig};
-use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, Resource};
@@ -15,8 +13,6 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
-
-static METER: OnceLock<SdkMeterProvider> = OnceLock::new();
 
 pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console: bool) {
     let service_resource = Resource::new(vec![
@@ -39,7 +35,6 @@ pub(crate) fn init_telemetry(endpoint: &Option<String>, compress: bool, console:
         .build()
         .context("Failed to install meter")
         .unwrap();
-    METER.set(meter.clone()).unwrap();
 
     global::set_text_map_propagator(TraceContextPropagator::new());
     let registry = Registry::default()
@@ -67,13 +62,4 @@ fn build_tonic_exporter(endpoint: &Option<String>, compress: bool) -> TonicExpor
     }
 
     exporter
-}
-
-pub(crate) fn shutdown_meter_provider() {
-    if let Some(meter) = METER.get() {
-        meter
-            .shutdown()
-            .context("Failed to shutdown meter provider")
-            .unwrap();
-    }
 }
