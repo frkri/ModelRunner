@@ -1,2 +1,2 @@
-### Check current health
+### Check current health of the application
 GET http://{{host}}:{{port}}/health

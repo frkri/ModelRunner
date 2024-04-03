@@ -1,10 +1,10 @@
 [package]
 name = "model_runner"
-version = "1.2.1"
+version = "1.2.2"
 edition = "2021"
 repository = "https://github.com/frkri/ModelRunner"
 license = "MIT"
-description = "Allow hosting of LLM models with a REST API"
+description = "Allows you to run LLM models locally with an HTTP API"
 keywords = ["LLM", "API", "HTTP"]
 readme = "README.md"
 
@@ -35,16 +35,16 @@ opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio", "metrics", "tr
 opentelemetry-otlp = { version = "0.15.0", features = ["tonic", "metrics", "trace"] }
 opentelemetry-semantic-conventions = "0.14.0"
 tower-http = { version = "0.5.2", features = ["trace"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
-reqwest = { version = "0.12.0", default-features = false, features = ["blocking", "rustls-tls"] }
-axum = { version = "0.7.4", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
+reqwest = { version = "0.12.2", default-features = false, features = ["blocking", "rustls-tls"] }
+axum = { version = "0.7.5", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
 serde = { version = "1.0.197", features = ["serde_derive"] }
-serde_json = "1.0.114"
+serde_json = "1.0.115"
 toml = "0.8.12"
-clap = { version = "4.5.3", features = ["derive", "color", "env"] }
+clap = { version = "4.5.4", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
 tokenizers = "0.15.2"
 hf-hub = "0.3.2"
