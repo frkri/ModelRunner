@@ -1,4 +1,4 @@
-### See status of current api key, JSON body with target id is optional
+### See status of an API key. JSON body with target ID is optional
 POST http://{{host}}:{{port}}/auth/status
 content-type: application/json
 authorization: Bearer {{api_key}}
@@ -7,7 +7,7 @@ authorization: Bearer {{api_key}}
   "id": "{{api_id}}"
 }
 
-### Create new api key
+### Create an new API key with permissions
 POST http://{{host}}:{{port}}/auth/create
 content-type: application/json
 authorization: Bearer {{api_key}}
@@ -21,7 +21,7 @@ authorization: Bearer {{api_key}}
   ]
 }
 
-### Delete api key
+### Delete an API key
 POST http://{{host}}:{{port}}/auth/delete
 content-type: application/json
 authorization: Bearer {{api_key}}
@@ -30,7 +30,7 @@ authorization: Bearer {{api_key}}
   "id": "{{api_id}}"
 }
 
-### Update key
+### Update an API key
 POST http://{{host}}:{{port}}/auth/update
 content-type: application/json
 authorization: Bearer {{api_key}}
