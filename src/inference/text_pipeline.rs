@@ -33,25 +33,17 @@ pub struct TextGeneratorPipeline {
     pub top_p: Option<f64>,
 }
 
+#[derive(Clone)]
 pub enum Model {
     Phi(Option<Phi2>),
     Mistral(Option<ModelWeights>),
+    OpenHermes(Option<ModelWeights>),
     StableLm(Option<QStableLM>),
 }
 
 pub enum ModelConfig {
     Phi(mixformer::Config),
     StableLm(StableLmConfig),
-}
-
-impl Clone for Model {
-    fn clone(&self) -> Model {
-        match self {
-            Model::Phi(model) => Model::Phi(model.clone()),
-            Model::Mistral(model) => Model::Mistral(model.clone()),
-            Model::StableLm(model) => Model::StableLm(model.clone()),
-        }
-    }
 }
 
 impl Clone for TextGeneratorPipeline {
@@ -108,7 +100,7 @@ impl TextGeneratorPipeline {
                 let model = QStableLM::new(&config, vb)?;
                 Model::StableLm(Some(model))
             }
-            Model::Mistral(_) => bail!("Invalid model"),
+            _ => bail!("Unsupported model"),
         };
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
@@ -130,6 +122,7 @@ impl TextGeneratorPipeline {
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf(
         repo: &ApiRepo,
+        model: &Model,
         tokenizer_file: PathBuf,
         gguf_filename: &str,
         seed: Option<u64>,
@@ -144,11 +137,15 @@ impl TextGeneratorPipeline {
         let device = Device::Cpu;
         let model_reader =
             gguf_file::Content::read(&mut file).map_err(|e| e.with_path(gguf_file))?;
-        let model = ModelWeights::from_gguf(model_reader, &mut file, &device)?;
+        let model_weights = Some(ModelWeights::from_gguf(model_reader, &mut file, &device)?);
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
         let pipeline = TextGeneratorPipeline {
-            model: Model::Mistral(Some(model)),
+            model: match model {
+                Model::Mistral(_) => Model::Mistral(model_weights),
+                Model::OpenHermes(_) => Model::OpenHermes(model_weights),
+                _ => bail!("Unsupported model"),
+            },
             device: Device::Cpu,
             tokenizer,
             logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
@@ -180,8 +177,9 @@ impl TextGeneratorPipeline {
         let eos_token = match self.model {
             Model::Mistral(_) => match self.tokenizer.tokenizer().get_vocab(true).get("</s>") {
                 Some(token) => *token,
-                None => bail!("Cannot find the </s> token"),
+                None => bail!("Cannot find </s> token"),
             },
+            Model::OpenHermes(_) => 32000,
             _ => match self
                 .tokenizer
                 .tokenizer()
@@ -189,7 +187,7 @@ impl TextGeneratorPipeline {
                 .get("<|endoftext|>")
             {
                 Some(token) => *token,
-                None => bail!("Cannot find the endoftext token"),
+                None => bail!("Cannot find the <|endoftext|> token"),
             },
         };
 
@@ -202,12 +200,14 @@ impl TextGeneratorPipeline {
             let logits = match &mut self.model {
                 Model::Phi(Some(model)) => model.forward(&input)?,
                 Model::Mistral(Some(model)) => model.forward(&input, start_pos)?,
+                Model::OpenHermes(Some(model)) => model.forward(&input, start_pos)?,
                 Model::StableLm(Some(model)) => model.forward(&input, start_pos)?,
                 _ => bail!("Model not initialized"),
             };
             let logits = match self.model {
                 Model::Phi(_) => logits.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::Mistral(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
+                Model::OpenHermes(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::StableLm(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
             };
             let logits = if (self.repeat_penalty - 1.).abs() < f32::EPSILON {
