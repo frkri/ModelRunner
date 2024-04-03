@@ -188,7 +188,9 @@ async fn main() -> Result<()> {
         }
     };
 
-    init_telemetry(&config.otel_endpoint, config.console);
+    // Init telemetry
+    let _guards = init_telemetry(&config.otel_endpoint, config.console, config.trace_local);
+
     info!(
         "model_runner v{}",
         option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::ArgAction;
 use clap_serde_derive::ClapSerde;
 use serde::Deserialize;
 
@@ -16,9 +17,14 @@ pub struct Config {
     #[arg(short, long, env)]
     pub otel_endpoint: Option<String>,
 
-    /// Should the console always be enabled even if the otel-endpoint is specified
-    #[arg(long, env)]
+    /// Should the console output always be enabled even if the logs are pushed to a collector
+    #[arg(long, env, action(ArgAction::SetTrue))]
     pub console: bool,
+
+    /// Enable saving traces locally with tracing-chrome crate.
+    /// This will save the traces in the current working directory as `trace-timestamp.json`
+    #[arg(long, env, action(ArgAction::SetTrue))]
+    pub trace_local: bool,
 
     /// The TLS configuration
     #[serde(default)]

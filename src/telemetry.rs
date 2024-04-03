@@ -8,55 +8,70 @@ use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, Resource};
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, SERVICE_VERSION};
+use tracing_chrome::ChromeLayerBuilder;
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::Registry;
+use tracing_subscriber::{EnvFilter, Layer};
 
-pub(crate) fn init_telemetry(endpoint: &Option<String>, console: bool) {
+pub(crate) fn init_telemetry(
+    endpoint: &Option<String>,
+    console: bool,
+    tracing_chrome: bool,
+) -> Vec<impl Drop> {
     let service_resource = Resource::new(vec![
         KeyValue::new(SERVICE_NAME, env!("CARGO_PKG_NAME")),
         KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
     ]);
 
-    let tracer = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(build_tonic_exporter(endpoint))
-        .with_trace_config(Config::default().with_resource(service_resource.clone()))
-        .install_batch(runtime::Tokio)
-        .context("Failed to install tracer")
-        .unwrap();
+    // Builds the initial layer
+    let mut guards = vec![];
+    let mut layer = EnvFilter::try_from_default_env()
+        .unwrap_or(EnvFilter::new("INFO"))
+        .boxed();
 
-    let meter = opentelemetry_otlp::new_pipeline()
-        .metrics(runtime::Tokio)
-        .with_exporter(build_tonic_exporter(endpoint))
-        .with_resource(service_resource)
-        .build()
-        .context("Failed to install meter")
-        .unwrap();
+    // Additions to the layer
+    if let Some(endpoint) = endpoint {
+        let tracer = opentelemetry_otlp::new_pipeline()
+            .tracing()
+            .with_exporter(build_tonic_exporter(endpoint))
+            .with_trace_config(Config::default().with_resource(service_resource.clone()))
+            .install_batch(runtime::Tokio)
+            .context("Failed to install tracer")
+            .unwrap();
+
+        let meter = opentelemetry_otlp::new_pipeline()
+            .metrics(runtime::Tokio)
+            .with_exporter(build_tonic_exporter(endpoint))
+            .with_resource(service_resource)
+            .build()
+            .context("Failed to install meter")
+            .unwrap();
+
+        layer = layer
+            .and_then(OpenTelemetryLayer::new(tracer))
+            .and_then(MetricsLayer::new(meter))
+            .boxed();
+    }
+    if endpoint.is_none() || console {
+        layer = layer.and_then(tracing_subscriber::fmt::layer()).boxed();
+    }
+    if tracing_chrome {
+        let (chrome_layer, chrome_guard) = ChromeLayerBuilder::new().build();
+        guards.push(chrome_guard);
+
+        layer = layer.and_then(chrome_layer).boxed();
+    }
 
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let registry = Registry::default()
-        .with(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO")))
-        .with(OpenTelemetryLayer::new(tracer))
-        .with(MetricsLayer::new(meter));
+    tracing_subscriber::registry().with(layer).init();
 
-    if endpoint.is_none() || console {
-        registry.with(tracing_subscriber::fmt::layer()).init();
-    } else {
-        registry.init();
-    }
+    guards
 }
 
-fn build_tonic_exporter(endpoint: &Option<String>) -> TonicExporterBuilder {
-    let mut exporter = opentelemetry_otlp::new_exporter()
+fn build_tonic_exporter(endpoint: &String) -> TonicExporterBuilder {
+    opentelemetry_otlp::new_exporter()
         .tonic()
-        .with_timeout(Duration::from_secs(15));
-
-    if let Some(endpoint) = endpoint {
-        exporter = exporter.with_endpoint(endpoint);
-    }
-
-    exporter
+        .with_endpoint(endpoint)
+        .with_timeout(Duration::from_secs(15))
 }
