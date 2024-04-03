@@ -13,6 +13,7 @@ use std::option::Option;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
+use axum::extract::MatchedPath;
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
@@ -243,7 +244,7 @@ async fn main() -> Result<()> {
         ))
         .route("/health", get(handle_health_request))
         .layer(TraceLayer::new_for_http())
-        .layer(middleware::from_fn(track_metrics))
+        .layer(middleware::from_fn(track_request))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
@@ -331,18 +332,39 @@ async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
-#[instrument(skip_all)]
-async fn track_metrics(req: Request, next: Next) -> ModelResult<Response> {
-    let start = Instant::now();
-    let path = req.uri().path().to_owned();
-    let method = req.method().clone();
-    let response = next.run(req).await;
+fn get_scheme(request: &Request) -> String {
+    if let Some(scheme) = request.uri().scheme_str() {
+        scheme.to_string()
+    } else {
+        "http".to_string()
+    }
+}
 
-    info!(monotonic_counter.requests_total = 1, path, ?method);
+fn get_path(request: &Request) -> String {
+    if let Some(matched_path) = request.extensions().get::<MatchedPath>() {
+        matched_path.as_str().to_string()
+    } else {
+        request.uri().path().to_string()
+    }
+}
+
+#[instrument(skip_all)]
+async fn track_request(req: Request, next: Next) -> ModelResult<Response> {
+    let start = Instant::now();
+    let method = req.method().to_owned();
+    let path = get_path(&req);
+    let version = req.version();
+    let scheme = get_scheme(&req);
+
+    info!(counter.http.server.active_requests = 1, ?method);
+    let response = next.run(req).await;
+    info!(counter.http.server.active_requests = -1, ?method);
     info!(
-        histogram.requests_duration = start.elapsed().as_secs_f64(),
+        histogram.http.server.request.duration = start.elapsed().as_secs_f64(),
         ?method,
-        path
+        path,
+        ?version,
+        scheme
     );
 
     Ok(response)
