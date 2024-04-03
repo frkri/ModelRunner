@@ -5,19 +5,19 @@ authorization: Bearer {{api_key}}
 
 {
   "model": "phi2",
-  "input": "Give me in percent how likely is this email to be a phishing email. The email title is 'You have won a prize! Click here to claim it!'. What is the probability that this email is a phishing email?",
-  "max_length": 100
+  "input": "Give me a detailed report about tomorrows sunny weather.",
+  "max_length": 150
 }
 
-### Mistral 7B
+### Mistral 7B Instruct
 POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
 authorization: Bearer {{api_key}}
 
 {
   "model": "mistral7b",
-  "input": "Give me in percent how likely is this email to be a phishing email. The email title is 'You have won a prize! Click here to claim it!'. What is the probability that this email is a phishing email?.",
-  "max_length": 100
+  "input": "Give me a detailed report about tomorrows sunny weather.",
+  "max_length": 150
 }
 
 ### OpenHermes 2.5 Mistral7B
@@ -27,8 +27,8 @@ authorization: Bearer {{api_key}}
 
 {
   "model": "openhermes",
-  "input": "Give me in percent how likely is this email to be a phishing email. The email title is 'You have won a prize! Click here to claim it!'. What is the probability that this email is a phishing email?.",
-  "max_length": 100
+  "input": "Give me a detailed report about tomorrows sunny weather.",
+  "max_length": 150
 }
 
 ### StableLM 2 Zephyr 1.6B
@@ -38,6 +38,6 @@ authorization: Bearer {{api_key}}
 
 {
   "model": "stablelm2",
-  "input": "Give me in percent how likely is this email to be a phishing email. The email title is 'You have won a prize! Click here to claim it!'. What is the probability that this email is a phishing email?.",
-  "max_length": 100
+  "input": "Give me a detailed report about tomorrows sunny weather.",
+  "max_length": 150
 }

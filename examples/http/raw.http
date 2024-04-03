@@ -6,7 +6,7 @@ authorization: Bearer {{api_key}}
 {
   "model": "phi2",
   "input": "USER: Give me a detailed report about tomorrows sunny weather. ASSISTANT:",
-  "max_length": 100,
+  "max_length": 150,
   "model_config": {
     "temperature": 0.6,
     "seed": 12345,
@@ -16,7 +16,7 @@ authorization: Bearer {{api_key}}
   }
 }
 
-### Mistral 7B
+### Mistral 7B Instruct
 POST http://{{host}}:{{port}}/text/raw
 content-type: application/json
 authorization: Bearer {{api_key}}
@@ -24,7 +24,7 @@ authorization: Bearer {{api_key}}
 {
   "model": "mistral7b",
   "input": "<s>[INST] Give me a detailed report about tomorrows sunny weather. [/INST]",
-  "max_length": 100,
+  "max_length": 150,
   "model_config": {
     "temperature": 0.2,
     "seed": 12345,
@@ -42,7 +42,7 @@ authorization: Bearer {{api_key}}
 {
   "model": "openhermes",
   "input": "<|im_start|>user\nGive me a detailed report about tomorrows sunny weather.<|im_end|>\n<|im_start|>assistant\n",
-  "max_length": 100,
+  "max_length": 150,
   "model_config": {
     "temperature": 0.2,
     "seed": 12345,
@@ -60,7 +60,7 @@ authorization: Bearer {{api_key}}
 {
   "model": "stablelm2",
   "input": "<|user|>\nGive me a detailed report about tomorrows sunny weather.<|endoftext|>\n<|assistant|>\n",
-  "max_length": 100,
+  "max_length": 150,
   "model_config": {
     "temperature": 0.2,
     "seed": 12345,
