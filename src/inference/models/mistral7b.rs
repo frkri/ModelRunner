@@ -8,7 +8,7 @@ use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::model::ModelBase;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
-use crate::inference::text_pipeline::TextGeneratorPipeline;
+use crate::inference::text_pipeline::{Model, TextGeneratorPipeline};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
 pub struct Mistral7BModel {
@@ -45,6 +45,7 @@ impl Mistral7BModel {
 
         let generator_pipeline = TextGeneratorPipeline::with_quantized_gguf(
             &repo,
+            &Model::Mistral(None),
             tokenizer_file,
             gguf_filename,
             general_model_config.seed,
