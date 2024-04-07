@@ -1,0 +1,3 @@
+storage:
+  tsdb:
+    out_of_order_time_window: 5m

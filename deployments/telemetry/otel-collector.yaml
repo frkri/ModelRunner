@@ -1,0 +1,34 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+processors:
+  batch:
+
+exporters:
+  otlphttp/metrics: # Native OTLP export over HTTP
+    endpoint: "http://prometheus:9090"
+    metrics_endpoint: "http://prometheus:9090/api/v1/otlp/v1/metrics"
+
+  loki/logs:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+
+  # Debug log
+  logging:
+    loglevel: debug
+
+service:
+  pipelines:
+    logs:
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ loki/logs ]
+    metrics:
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ otlphttp/metrics ]
+    traces:
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ logging ]
