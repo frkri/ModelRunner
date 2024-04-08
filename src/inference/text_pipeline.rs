@@ -184,10 +184,10 @@ impl TextGeneratorPipeline {
                 .tokenizer
                 .tokenizer()
                 .get_vocab(true)
-                .get("<|endoftext|>")
+                .get("<|im_end|>")
             {
                 Some(token) => *token,
-                None => bail!("Cannot find the <|endoftext|> token"),
+                None => bail!("Cannot find the <|im_end|> token"),
             },
         };
 
