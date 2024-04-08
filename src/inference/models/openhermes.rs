@@ -16,6 +16,7 @@ pub struct OpenHermesModel {
 }
 
 impl Clone for OpenHermesModel {
+    #[tracing::instrument(level = "trace", skip(self))]
     fn clone(&self) -> Self {
         OpenHermesModel {
             generator_pipeline: self.generator_pipeline.clone(),
@@ -24,6 +25,10 @@ impl Clone for OpenHermesModel {
 }
 
 impl OpenHermesModel {
+    #[tracing::instrument(
+        level = "trace",
+        skip(api, base, tokenizer_filename, gguf_filename, general_model_config)
+    )]
     pub fn new(
         api: &Api,
         base: ModelBase,
@@ -60,6 +65,7 @@ impl OpenHermesModel {
 }
 
 impl RawHandler for OpenHermesModel {
+    #[tracing::instrument(level = "trace", skip(self, request))]
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -81,6 +87,7 @@ impl RawHandler for OpenHermesModel {
 }
 
 impl InstructHandler for OpenHermesModel {
+    #[tracing::instrument(level = "trace", skip(self, request))]
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
         let prompt = format!(
             "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",

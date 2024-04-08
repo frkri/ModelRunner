@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use tokio::try_join;
 
 #[allow(dead_code)]
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub(crate) struct ApiClient {
     pub(crate) id: String,
     pub(crate) name: Option<String>,
@@ -21,28 +21,28 @@ pub(crate) struct ApiClient {
     pub(crate) created_by: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientStatusRequest {
     pub(crate) id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientCreateRequest {
     pub(crate) name: String,
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub(crate) struct ApiClientCreateResponse {
     pub(crate) key: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientDeleteRequest {
     pub(crate) id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientUpdateRequest {
     pub(crate) id: Option<String>,
     pub(crate) name: String,
@@ -111,6 +111,7 @@ impl Into<i64> for &Permission {
 }
 
 impl ApiClient {
+    #[tracing::instrument(level = "info", skip(pool))]
     pub(crate) async fn from(id: &str, pool: &SqlitePool) -> Result<Self> {
         let half_client = sqlx::query!(
             "SELECT id, name, key, created_at, updated_at, created_by FROM api_clients WHERE id = ?",
@@ -140,6 +141,7 @@ impl ApiClient {
 
         Ok(client)
     }
+    #[tracing::instrument(level = "info", skip(self))]
     pub(crate) fn has_permission(&self, permission: Permission) -> Result<()> {
         if !self.permissions.contains(&permission) {
             bail!(
@@ -150,6 +152,7 @@ impl ApiClient {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info", skip_all)]
     pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query!(
             "DELETE FROM api_client_permission_scopes where api_client_id = ?",
@@ -164,6 +167,7 @@ impl ApiClient {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info", skip(self, pool))]
     pub(crate) async fn update(
         &self,
         name: &String,

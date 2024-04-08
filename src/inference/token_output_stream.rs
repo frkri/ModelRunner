@@ -3,6 +3,8 @@ use anyhow::{bail, Result};
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/src/token_output_stream.rs
 /// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a
 /// streaming way rather than having to wait for the full decoding.
+
+#[derive(Debug)]
 pub struct TokenOutputStream {
     tokenizer: tokenizers::Tokenizer,
     tokens: Vec<u32>,
@@ -22,6 +24,7 @@ impl Clone for TokenOutputStream {
 }
 
 impl TokenOutputStream {
+    #[tracing::instrument(level = "trace")]
     pub fn new(tokenizer: tokenizers::Tokenizer) -> Self {
         Self {
             tokenizer,
@@ -31,6 +34,7 @@ impl TokenOutputStream {
         }
     }
 
+    #[tracing::instrument(level = "trace")]
     fn decode(&self, tokens: &[u32]) -> Result<String> {
         match self.tokenizer.decode(tokens, true) {
             Ok(str) => Ok(str),
@@ -39,6 +43,7 @@ impl TokenOutputStream {
     }
 
     // https://github.com/huggingface/text-generation-inference/blob/5ba53d44a18983a4de32d122f4cb46f4a17d9ef6/server/text_generation_server/models/model.py#L68
+    #[tracing::instrument(level = "trace")]
     pub fn next_token(&mut self, token: u32) -> Result<Option<String>> {
         let prev_text = if self.tokens.is_empty() {
             String::new()
@@ -58,6 +63,7 @@ impl TokenOutputStream {
         }
     }
 
+    #[tracing::instrument(level = "trace")]
     pub fn decode_rest(&self) -> Result<Option<String>> {
         let prev_text = if self.tokens.is_empty() {
             String::new()
@@ -78,6 +84,7 @@ impl TokenOutputStream {
         &self.tokenizer
     }
 
+    #[tracing::instrument(level = "trace")]
     pub fn clear(&mut self) {
         self.tokens.clear();
         self.prev_index = 0;

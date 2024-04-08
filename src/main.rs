@@ -281,6 +281,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[tracing::instrument(level = "info", skip(handle))]
 async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
@@ -332,6 +333,7 @@ async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
+#[tracing::instrument(level = "trace", skip(request))]
 fn get_scheme(request: &Request) -> String {
     if let Some(scheme) = request.uri().scheme_str() {
         scheme.to_string()
@@ -340,6 +342,7 @@ fn get_scheme(request: &Request) -> String {
     }
 }
 
+#[tracing::instrument(level = "trace", skip(request))]
 fn get_path(request: &Request) -> String {
     if let Some(matched_path) = request.extensions().get::<MatchedPath>() {
         matched_path.as_str().to_string()
@@ -370,11 +373,13 @@ async fn track_request(req: Request, next: Next) -> ModelResult<Response> {
     Ok(response)
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_health_request() -> ModelResult<StatusCode> {
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip(req))]
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
@@ -393,6 +398,7 @@ async fn handle_status_request(
     }
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_create_request(
     State(state): State<AppState>,
@@ -412,6 +418,7 @@ async fn handle_create_request(
     Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_delete_request(
     State(state): State<AppState>,
@@ -426,6 +433,7 @@ async fn handle_delete_request(
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip(req))]
 #[axum_macros::debug_handler]
 async fn handle_update_request(
     State(state): State<AppState>,
@@ -445,6 +453,7 @@ async fn handle_update_request(
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_raw_request(
     Json(req): Json<RawRequest>,
@@ -461,6 +470,7 @@ async fn handle_raw_request(
     }
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_instruct_request(
     Json(req): Json<InstructRequest>,
@@ -483,6 +493,7 @@ async fn handle_instruct_request(
     }
 }
 
+#[tracing::instrument(level = "trace", skip(multipart))]
 #[axum_macros::debug_handler]
 async fn handle_transcribe_request(
     mut multipart: Multipart,

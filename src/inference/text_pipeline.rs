@@ -21,6 +21,7 @@ use crate::inference::token_output_stream::TokenOutputStream;
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/quantized/main.rs
 // https://github.com/huggingface/candle/tree/main/candle-examples/examples/stable-lm
+#[derive(Debug)]
 pub struct TextGeneratorPipeline {
     pub model: Model,
     pub device: Device,
@@ -33,14 +34,14 @@ pub struct TextGeneratorPipeline {
     pub top_p: Option<f64>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Model {
     Phi(Option<Phi2>),
     Mistral(Option<ModelWeights>),
     OpenHermes(Option<ModelWeights>),
     StableLm(Option<QStableLM>),
 }
-
+#[derive(Debug)]
 pub enum ModelConfig {
     Phi(mixformer::Config),
     StableLm(StableLmConfig),
@@ -67,6 +68,7 @@ impl Clone for TextGeneratorPipeline {
 }
 
 impl TextGeneratorPipeline {
+    #[tracing::instrument(level = "debug", skip(repo))]
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf_config(
         repo: &ApiRepo,
@@ -119,6 +121,7 @@ impl TextGeneratorPipeline {
         Ok(pipeline)
     }
 
+    #[tracing::instrument(level = "debug", skip(repo))]
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf(
         repo: &ApiRepo,
@@ -158,6 +161,7 @@ impl TextGeneratorPipeline {
 
         Ok(pipeline)
     }
+    #[tracing::instrument(level = "info", skip(prompt))]
     pub fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64)> {
         if let Model::Phi(Some(ref mut m)) = self.model {
             m.clear_kv_cache();

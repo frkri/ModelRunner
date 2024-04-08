@@ -14,6 +14,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
+#[tracing::instrument(level = "info")]
 pub(crate) fn init_telemetry(
     endpoint: &Option<String>,
     console: bool,
@@ -69,6 +70,7 @@ pub(crate) fn init_telemetry(
     guards
 }
 
+#[tracing::instrument(level = "trace", skip(endpoint))]
 fn build_tonic_exporter(endpoint: &String) -> TonicExporterBuilder {
     opentelemetry_otlp::new_exporter()
         .tonic()

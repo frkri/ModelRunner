@@ -8,6 +8,7 @@ use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use symphonia::core::meta::MetadataOptions;
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/whisper/pcm_decode.rs
+#[tracing::instrument(level = "trace", skip(samples, data))]
 fn conv<T>(samples: &mut Vec<f32>, data: &symphonia::core::audio::AudioBuffer<T>)
 where
     T: symphonia::core::sample::Sample,
@@ -16,6 +17,7 @@ where
     samples.extend(data.chan(0).iter().map(|v| f32::from_sample(*v)));
 }
 
+#[tracing::instrument(level = "trace", skip(cursor))]
 pub(crate) fn pcm_decode(cursor: Cursor<Box<[u8]>>) -> anyhow::Result<(Vec<f32>, u32)> {
     // Create the media source stream.
     let mss = MediaSourceStream::new(Box::new(cursor), MediaSourceStreamOptions::default());

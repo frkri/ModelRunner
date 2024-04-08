@@ -23,6 +23,12 @@ impl Clone for WhisperModel {
 }
 
 impl WhisperModel {
+    #[tracing::instrument(
+        level = "debug",
+        skip(
+            api
+        )
+    )]
     pub fn new(
         api: Api,
         base: &ModelBase,
@@ -54,6 +60,7 @@ impl WhisperModel {
 }
 
 impl TranscribeHandler for WhisperModel {
+    #[tracing::instrument(level = "debug", skip(self, input))]
     fn run_transcribe(
         &mut self,
         input: Box<[u8]>,

@@ -16,6 +16,7 @@ pub struct Phi2Model {
 }
 
 impl Clone for Phi2Model {
+    #[tracing::instrument(level = "trace", skip(self))]
     fn clone(&self) -> Self {
         Phi2Model {
             generator_pipeline: self.generator_pipeline.clone(),
@@ -24,6 +25,17 @@ impl Clone for Phi2Model {
 }
 
 impl Phi2Model {
+    #[tracing::instrument(
+        level = "trace",
+        skip(
+            api,
+            base,
+            tokenizer_filename,
+            gguf_filename,
+            phi2_config,
+            general_model_config
+        )
+    )]
     pub fn new(
         api: &Api,
         base: &ModelBase,
@@ -56,6 +68,7 @@ impl Phi2Model {
 }
 
 impl RawHandler for Phi2Model {
+    #[tracing::instrument(level = "trace", skip(self, request))]
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -77,6 +90,7 @@ impl RawHandler for Phi2Model {
 }
 
 impl InstructHandler for Phi2Model {
+    #[tracing::instrument(level = "trace", skip(self, request))]
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
         let prompt = format!("Instruct: {}\nOutput:", request.input);
         let (output, inference_time) = self

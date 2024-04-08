@@ -20,6 +20,7 @@ where
 {
     type Rejection = ModelRunnerError;
 
+    #[tracing::instrument(level = "debug", skip(parts, state))]
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let header_value = extract_auth_header(&parts.headers)?;
         let (id, _) = extract_id_key(header_value)?;

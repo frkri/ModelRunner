@@ -50,6 +50,7 @@ pub struct TlsConfig {
 }
 
 impl Config {
+    #[tracing::instrument(level = "trace")]
     pub fn from_toml(path: &str) -> Result<Self> {
         let str = std::fs::read_to_string(path)?;
         let config = toml::from_str(&str)?;

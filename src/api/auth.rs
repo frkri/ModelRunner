@@ -28,6 +28,7 @@ impl Auth {
     /// # Errors
     ///
     /// Will return `anyhow:Err` if the hashing or the insertion of the keys fails.
+    #[tracing::instrument(level = "info", skip(pool))]
     pub async fn create_api_key(
         &self,
         name: &str,
@@ -83,6 +84,7 @@ impl Auth {
         Ok(format!("{id}_{key}"))
     }
 
+    #[tracing::instrument(level = "info", skip(key, pool))]
     pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<bool> {
         let (id, key) = extract_id_key(key)?;
 
@@ -101,6 +103,7 @@ impl Auth {
     }
 }
 
+#[tracing::instrument(level = "debug", skip(headers))]
 /// # Errors
 ///
 /// Will return `anyhow:Err` if headers do no match expected format or the authorization header is missing
@@ -117,6 +120,7 @@ pub fn extract_auth_header(headers: &HeaderMap) -> Result<&str> {
     Ok(key)
 }
 
+#[tracing::instrument(level = "debug", skip(key))]
 pub(crate) fn extract_id_key(key: &str) -> Result<(&str, &str)> {
     let mut parts = key.split('_');
     let id = parts.next().ok_or(anyhow!("Invalid format for key"))?;
