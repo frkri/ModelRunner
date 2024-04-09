@@ -19,7 +19,10 @@ use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
-use axum::{middleware, Json, Router};
+use axum::{middleware, Json, Router, Extension};
+use axum_extra::headers::Authorization;
+use axum_extra::headers::authorization::Bearer;
+use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use candle_transformers::models::mixformer;
@@ -36,10 +39,8 @@ use crate::api::api_client::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
 };
 use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
-use crate::api::auth::extract_auth_header;
 use crate::api::auth::extract_id_key;
-use crate::api::auth::Auth;
-use crate::config::Config;
+use crate::api::auth::Auth;use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
 use crate::extractors::ApiClientExtractor;
@@ -299,21 +300,23 @@ async fn shutdown_handler(handle: Handle) {
 
 async fn auth_middleware(
     State(state): State<AppState>,
-    request: Request,
+    TypedHeader(auth_header): TypedHeader<Authorization<Bearer>>,
+    mut request: Request,
     next: Next,
 ) -> ModelResult<Response> {
-    let header_value = extract_auth_header(request.headers())?;
-    if !state
+    let (id, key) = extract_id_key(auth_header.0.token())?;
+    if state
         .auth
-        .check_api_key(header_value, &state.db_pool)
-        .await?
+        .check_api_key(key, &state.db_pool)
+        .await
+        .is_err()
     {
         bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
     }
 
-    let (id, _) = extract_id_key(header_value)?;
     let client = ApiClient::from(id, &state.db_pool).await?;
     client.has_permission(Permission::Use)?;
+    request.extensions_mut().insert(client);
     Ok(next.run(request).await)
 }
 
@@ -325,7 +328,7 @@ async fn handle_health_request() -> ModelResult<StatusCode> {
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    Extension(client): Extension<ApiClient>,
     req: Option<Json<ApiClientStatusRequest>>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
     match req {
