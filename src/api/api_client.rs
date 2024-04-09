@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use tokio::try_join;
 
 #[allow(dead_code)]
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub(crate) struct ApiClient {
     pub(crate) id: String,
     pub(crate) name: Option<String>,

@@ -83,21 +83,19 @@ impl Auth {
         Ok(format!("{id}_{key}"))
     }
 
-    pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<bool> {
+    pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<()> {
         let (id, key) = extract_id_key(key)?;
 
         let hashed_key_record = sqlx::query!("SELECT key FROM api_clients WHERE id = ?", id)
             .fetch_one(pool)
             .await
-            .map_err(|_| anyhow!("Invalid API key"))?;
+            .map_err(|_| anyhow!("Failed to find client by ID"))?;
         let hashed_key =
             PasswordHash::new(hashed_key_record.key.as_str()).map_err(|e| anyhow!(e))?;
 
-        let is_valid = self
-            .argon
+        self.argon
             .verify_password(key.as_bytes(), &hashed_key)
-            .is_ok();
-        Ok(is_valid)
+            .map_err(|e| anyhow!(e))
     }
 }
 
