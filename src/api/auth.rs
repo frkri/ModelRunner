@@ -1,20 +1,18 @@
-use std::time::SystemTime;
+use std::fmt::Display;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::Result;
+use anyhow::{anyhow, bail};
 use argon2::Argon2;
-use axum::http::HeaderMap;
 use base64ct::Base64;
 use base64ct::Encoding;
-use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
-use rand::rngs::OsRng;
+use password_hash::rand_core::OsRng;
+use password_hash::{PasswordHashString, PasswordHasher, SaltString};
 use rand::RngCore;
-use sqlx::SqlitePool;
-
-use crate::api::api_client::Permission;
+use serde::Serialize;
 
 #[derive(Clone)]
 pub struct Auth {
-    argon: Argon2<'static>,
+    pub(crate) argon: Argon2<'static>,
 }
 
 impl Default for Auth {
@@ -24,17 +22,20 @@ impl Default for Auth {
     }
 }
 
-impl Auth {
-    /// # Errors
-    ///
-    /// Will return `anyhow:Err` if the hashing or the insertion of the keys fails.
-    pub async fn create_api_key(
-        &self,
-        name: &str,
-        permission: &Vec<Permission>,
-        creator_id: &Option<String>,
-        pool: &SqlitePool,
-    ) -> Result<String> {
+const AUTH_TOKEN_SEPARATOR: &str = "_";
+
+#[derive(Serialize, Clone)]
+/// `AuthToken` is a struct that holds the id and a hashed key of a token. It also provides the display format of the token which is delimited by `AUTH_TOKEN_SEPARATOR`.
+pub struct AuthToken {
+    pub id: String,
+    #[serde(skip)]
+    pub key_hash: Option<PasswordHashString>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_raw: Option<String>,
+}
+
+impl AuthToken {
+    pub(crate) fn new(argon: &Argon2, salt: &SaltString) -> Result<Self> {
         let mut key = [0u8; 64];
         OsRng.fill_bytes(&mut key);
         let key = Base64::encode_string(&key);
@@ -43,82 +44,52 @@ impl Auth {
         let mut id = [0u8; 16];
         OsRng.fill_bytes(&mut id);
         let id = Base64::encode_string(&id);
-        let id = id.trim_end_matches('=');
+        let id = id.trim_end_matches('=').to_string();
 
-        let salt = SaltString::generate(&mut OsRng);
-        let key_hash = self
-            .argon
-            .hash_password(key.as_bytes(), &salt)
-            .map_err(|e| anyhow!(e))?
-            .to_string();
+        let key_hash = Some(
+            argon
+                .hash_password(key.as_bytes(), salt)
+                .map_err(|e| anyhow!(e))?
+                .into(),
+        );
 
-        let unix_now: i64 = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_millis()
-            .try_into()?;
-        sqlx::query_as!(
-            ApiClient,
-            "INSERT INTO api_clients (id, name, key, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+        Ok(Self {
             id,
-            name,
             key_hash,
-            unix_now,
-            unix_now,
-            creator_id
-        )
-        .execute(pool)
-        .await?;
+            key_raw: Some(key.to_string()),
+        })
+    }
 
-        for p in permission {
-            let scope_id: i64 = p.into();
-            sqlx::query!(
-                "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
-                id,
-                scope_id
-            )
-            .execute(pool)
-            .await?;
+    pub(crate) fn from(id: String, hash: impl Into<PasswordHashString>) -> Self {
+        let hash = hash.into();
+        Self {
+            id,
+            key_hash: Some(hash),
+            key_raw: None,
         }
-
-        Ok(format!("{id}_{key}"))
     }
 
-    pub(crate) async fn check_api_key(&self, key: &str, pool: &SqlitePool) -> Result<()> {
-        let (id, key) = extract_id_key(key)?;
-
-        let hashed_key_record = sqlx::query!("SELECT key FROM api_clients WHERE id = ?", id)
-            .fetch_one(pool)
-            .await
-            .map_err(|_| anyhow!("Failed to find client by ID"))?;
-        let hashed_key =
-            PasswordHash::new(hashed_key_record.key.as_str()).map_err(|e| anyhow!(e))?;
-
-        self.argon
-            .verify_password(key.as_bytes(), &hashed_key)
-            .map_err(|e| anyhow!(e))
+    pub(crate) fn from_raw_str(token: &str) -> Result<Self> {
+        let parts: Vec<&str> = token.split(AUTH_TOKEN_SEPARATOR).collect();
+        if parts.len() != 2 {
+            bail!("Invalid token format");
+        }
+        Ok(Self {
+            id: parts[0].to_string(),
+            key_hash: None,
+            key_raw: Some(parts[1].to_string()),
+        })
     }
 }
 
-/// # Errors
-///
-/// Will return `anyhow:Err` if headers do no match expected format or the authorization header is missing
-pub fn extract_auth_header(headers: &HeaderMap) -> Result<&str> {
-    let header = headers.get("authorization");
-    let key = match header {
-        Some(key) => key
-            .to_str()?
-            .strip_prefix("Bearer ")
-            .ok_or_else(|| anyhow!("Invalid authorization header"))?,
-        None => bail!("Missing authorization header"),
-    };
-
-    Ok(key)
-}
-
-pub(crate) fn extract_id_key(key: &str) -> Result<(&str, &str)> {
-    let mut parts = key.split('_');
-    let id = parts.next().ok_or(anyhow!("Invalid format for key"))?;
-    let key = parts.next().ok_or(anyhow!("Invalid format for key"))?;
-
-    Ok((id, key))
+impl Display for AuthToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            self.id,
+            AUTH_TOKEN_SEPARATOR,
+            self.key_raw.as_ref().unwrap()
+        )
+    }
 }

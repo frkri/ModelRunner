@@ -3,14 +3,13 @@ use clap::Parser;
 use clap::Subcommand;
 use sqlx::SqlitePool;
 
-use crate::api::api_client::Permission;
 use crate::api::auth::Auth;
+use crate::api::client::{ApiClient, Permission};
 
 #[allow(dead_code)]
 #[path = "../api/mod.rs"]
 mod api;
 
-// TODO: This won't be feature complete for some time
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -47,7 +46,6 @@ struct AppState {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-
     let db_pool = SqlitePool::connect(&args.sqlite_file_path).await?;
     let auth = Auth::default();
     let state = AppState { db_pool, auth };
@@ -58,14 +56,10 @@ async fn main() -> Result<()> {
             permission,
             creator_id,
         } => {
-            let key = state
-                .auth
-                .create_api_key(name.as_str(), &permission, &creator_id, &state.db_pool)
-                .await?;
-            println!(
-                "Generated new API key with {:#?} permissions\n{}",
-                &permission, &key
-            );
+            let client =
+                ApiClient::new(&state.auth, &name, &permission, &creator_id, &state.db_pool)
+                    .await?;
+            println!("Generated new API client:\n{}", &client);
         }
     }
     Ok(())

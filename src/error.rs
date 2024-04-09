@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -25,6 +27,12 @@ impl From<&str> for HttpErrorResponse {
         HttpErrorResponse {
             error: message.to_string(),
         }
+    }
+}
+
+impl Display for ModelRunnerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message.error)
     }
 }
 
@@ -58,10 +66,26 @@ macro_rules! bail_runner {
     ($status_code:expr, $error_message:expr) => {
         return Err($crate::error::ModelRunnerError { status: $status_code, message: HttpErrorResponse::from($error_message) })
     };
-    ($status:expr, $fmt:expr $(, $arg:expr)*) => {
+    ($status_code:expr, $fmt:expr $(, $arg:expr)*) => {
         return Err(ModelRunnerError {
-            status: $status,
+            status: $status_code,
             message: HttpErrorResponse::from(format!($fmt $(, $arg)*)),
         })
+    };
+}
+
+#[macro_export]
+macro_rules! runner {
+    ($error_message:expr) => {
+        $crate::error::ModelRunnerError { status: StatusCode::INTERNAL_SERVER_ERROR, message: HttpErrorResponse::from($error_message) }
+    };
+    ($status_code:expr, $error_message:expr) => {
+        $crate::error::ModelRunnerError { status: $status_code, message: HttpErrorResponse::from($error_message) }
+    };
+    ($status_code:expr, $fmt:expr $(, $arg:expr)*) => {
+        ModelRunnerError {
+            status: $status_code,
+            message: HttpErrorResponse::from(format!($fmt $(, $arg)*)),
+        }
     };
 }
