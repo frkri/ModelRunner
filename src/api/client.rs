@@ -1,13 +1,17 @@
 use std::fmt::Display;
 use std::time::SystemTime;
 
-use anyhow::Result;
 use anyhow::{anyhow, bail};
+use anyhow::Result;
+use axum::routing::any;
 use clap::ValueEnum;
-use password_hash::rand_core::OsRng;
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use password_hash::{PasswordHash, PasswordVerifier, SaltString};
+use password_hash::rand_core::OsRng;
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Type};
+use strum::{Display, EnumCount, EnumDiscriminants, EnumIter, EnumString, FromRepr, IntoEnumIterator, IntoStaticStr};
 use tokio::try_join;
 
 use crate::api::auth::{Auth, AuthToken};
@@ -46,25 +50,20 @@ pub(crate) struct ApiClientUpdateRequest {
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(PartialEq, Deserialize, Serialize, Clone, Copy, Debug, ValueEnum)]
+#[derive(PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum, Display, FromPrimitive, ToPrimitive)]
+#[repr(i64)]
+/// Permissions are divided between targets Self and Other.
 pub enum Permission {
-    Use,
-    Status,
-    Create,
-    Delete,
-    Update,
-}
-
-impl Display for Permission {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Permission::Use => write!(f, "use"),
-            Permission::Status => write!(f, "status"),
-            Permission::Create => write!(f, "create"),
-            Permission::Delete => write!(f, "delete"),
-            Permission::Update => write!(f, "update"),
-        }
-    }
+    UseSelf,
+    UseOther,
+    StatusSelf,
+    StatusOther,
+    CreateSelf,
+    CreateOther,
+    DeleteSelf,
+    DeleteOther,
+    UpdateSelf,
+    UpdateOther,
 }
 
 impl Display for ApiClient {
@@ -79,45 +78,6 @@ impl Display for ApiClient {
             self.updated_at,
             self.created_by.as_ref().unwrap_or(&"None".to_string())
         )
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<i64> for Permission {
-    fn into(self) -> i64 {
-        match self {
-            Permission::Use => 1,
-            Permission::Status => 2,
-            Permission::Create => 3,
-            Permission::Delete => 4,
-            Permission::Update => 5,
-        }
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<i64> for &Permission {
-    fn into(self) -> i64 {
-        match self {
-            Permission::Use => 1,
-            Permission::Status => 2,
-            Permission::Create => 3,
-            Permission::Delete => 4,
-            Permission::Update => 5,
-        }
-    }
-}
-
-impl From<i64> for Permission {
-    fn from(item: i64) -> Self {
-        match item {
-            1 => Permission::Use,
-            2 => Permission::Status,
-            3 => Permission::Create,
-            4 => Permission::Delete,
-            5 => Permission::Update,
-            _ => unreachable!(),
-        }
     }
 }
 
@@ -154,7 +114,7 @@ impl ApiClient {
             .execute(pool)
             .await?;
         for p in permission {
-            let scope_id: i64 = p.into();
+            let scope_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
             sqlx::query!(
                 "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
                 token.id,
@@ -188,7 +148,7 @@ impl ApiClient {
         let (client_record, client_permissions) = try_join!(client_record, client_permissions)?;
         let permissions: Vec<Permission> = client_permissions
             .iter()
-            .map(|p| Permission::from(p.scope_id))
+            .map(|p| Permission::from_i64(p.scope_id).ok_or_else(|| anyhow!("Permission not found")).unwrap())
             .collect();
 
         Ok(ApiClient {
@@ -231,7 +191,7 @@ impl ApiClient {
         .await?;
         let permissions: Vec<Permission> = client_permissions
             .iter()
-            .map(|p| Permission::from(p.scope_id))
+            .map(|p| Permission::from_i64(p.scope_id).ok_or_else(|| anyhow!("Permission not found")).unwrap())
             .collect();
 
         let client = ApiClient {
@@ -248,7 +208,7 @@ impl ApiClient {
     pub(crate) fn has_permission(&self, permission: Permission) -> Result<()> {
         if !self.permissions.contains(&permission) {
             bail!(
-                "Client does not have permission to perform this action: {}",
+                "Client does not have permission to perform this action: {:?}",
                 permission
             )
         }
@@ -294,7 +254,7 @@ impl ApiClient {
         try_join!(update_query, delete_query)?;
 
         for p in permission {
-            let scope_id: i64 = p.into();
+            let scope_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
             sqlx::query!(
                 "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
                 self.token.id,
