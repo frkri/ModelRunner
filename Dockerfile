@@ -1,5 +1,5 @@
 # Specifically use Debian 12 due to the runtime image running also running on Debian 12
-FROM rust:1.77.1-bookworm as builder
+FROM rust:1.77.2-bookworm as builder
 # Compile without any optimizations by default
 ARG rust_flags=""
 
