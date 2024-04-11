@@ -1,17 +1,16 @@
 use std::fmt::Display;
 use std::time::SystemTime;
 
-use anyhow::{anyhow, bail};
 use anyhow::Result;
-use axum::routing::any;
+use anyhow::{anyhow, bail};
 use clap::ValueEnum;
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use password_hash::{PasswordHash, PasswordVerifier, SaltString};
 use password_hash::rand_core::OsRng;
+use password_hash::{PasswordHash, PasswordVerifier, SaltString};
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, Type};
-use strum::{Display, EnumCount, EnumDiscriminants, EnumIter, EnumString, FromRepr, IntoEnumIterator, IntoStaticStr};
+use sqlx::SqlitePool;
+use strum::Display;
 use tokio::try_join;
 
 use crate::api::auth::{Auth, AuthToken};
@@ -50,7 +49,9 @@ pub(crate) struct ApiClientUpdateRequest {
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum, Display, FromPrimitive, ToPrimitive)]
+#[derive(
+    PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum, Display, FromPrimitive, ToPrimitive,
+)]
 #[repr(i64)]
 /// Permissions are divided between targets Self and Other.
 pub enum Permission {
@@ -103,7 +104,7 @@ impl ApiClient {
             .try_into()?;
         sqlx::query_as!(
             ApiClient,
-            "INSERT INTO api_clients (id, name, key, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO client (id, name, key, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?)",
             token.id,
             name,
             key_hash,
@@ -114,11 +115,11 @@ impl ApiClient {
             .execute(pool)
             .await?;
         for p in permission {
-            let scope_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
+            let permission_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
             sqlx::query!(
-                "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
+                "INSERT INTO client_permission (client_id, permission_id) VALUES (?, ?)",
                 token.id,
-                scope_id
+                permission_id
             )
             .execute(pool)
             .await?;
@@ -136,19 +137,23 @@ impl ApiClient {
 
     pub(crate) async fn with_id(id: &str, pool: &SqlitePool) -> Result<Self> {
         let client_record = sqlx::query!(
-            "SELECT id, name, key, created_at, updated_at, created_by FROM api_clients WHERE id = ?",
+            "SELECT id, name, key, created_at, updated_at, created_by FROM client WHERE id = ?",
             id
         )
         .fetch_one(pool);
         let client_permissions = sqlx::query!(
-            "SELECT scope_id FROM api_client_permission_scopes WHERE api_client_id = ?",
+            "SELECT permission_id FROM client_permission WHERE client_id = ?",
             id
         )
         .fetch_all(pool);
         let (client_record, client_permissions) = try_join!(client_record, client_permissions)?;
         let permissions: Vec<Permission> = client_permissions
             .iter()
-            .map(|p| Permission::from_i64(p.scope_id).ok_or_else(|| anyhow!("Permission not found")).unwrap())
+            .map(|p| {
+                Permission::from_i64(p.permission_id)
+                    .ok_or_else(|| anyhow!("Permission not found"))
+                    .unwrap()
+            })
             .collect();
 
         Ok(ApiClient {
@@ -170,10 +175,11 @@ impl ApiClient {
         pool: &SqlitePool,
     ) -> Result<Self> {
         let client_record = sqlx::query!(
-            "SELECT id, name, key, created_at, updated_at, created_by FROM api_clients WHERE id = ?",
+            "SELECT id, name, key, created_at, updated_at, created_by FROM client WHERE id = ?",
             token.id
         )
-            .fetch_one(pool).await?;
+        .fetch_one(pool)
+        .await?;
         let stored_hashed_key =
             PasswordHash::new(client_record.key.as_str()).map_err(|e| anyhow!(e))?;
         let key = token
@@ -184,14 +190,18 @@ impl ApiClient {
             .map_err(|e| anyhow!(e))?;
 
         let client_permissions = sqlx::query!(
-            "SELECT scope_id FROM api_client_permission_scopes WHERE api_client_id = ?",
+            "SELECT permission_id FROM client_permission WHERE client_id = ?",
             token.id
         )
         .fetch_all(pool)
         .await?;
         let permissions: Vec<Permission> = client_permissions
             .iter()
-            .map(|p| Permission::from_i64(p.scope_id).ok_or_else(|| anyhow!("Permission not found")).unwrap())
+            .map(|p| {
+                Permission::from_i64(p.permission_id)
+                    .ok_or_else(|| anyhow!("Permission not found"))
+                    .unwrap()
+            })
             .collect();
 
         let client = ApiClient {
@@ -217,12 +227,12 @@ impl ApiClient {
 
     pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query!(
-            "DELETE FROM api_client_permission_scopes where api_client_id = ?",
+            "DELETE FROM client_permission where client_id = ?",
             self.token.id
         )
         .execute(pool)
         .await?;
-        sqlx::query!("DELETE FROM api_clients WHERE id = ?", self.token.id)
+        sqlx::query!("DELETE FROM client WHERE id = ?", self.token.id)
             .execute(pool)
             .await?;
 
@@ -240,25 +250,25 @@ impl ApiClient {
             .as_millis()
             .try_into()?;
         let update_query = sqlx::query!(
-            "UPDATE api_clients SET name = ?, updated_at = ? WHERE id = ?",
+            "UPDATE client SET name = ?, updated_at = ? WHERE id = ?",
             name,
             unix_now,
             self.token.id
         )
         .execute(pool);
         let delete_query = sqlx::query!(
-            "DELETE FROM api_client_permission_scopes WHERE api_client_id = ?",
+            "DELETE FROM client_permission WHERE client_id = ?",
             self.token.id
         )
         .execute(pool);
         try_join!(update_query, delete_query)?;
 
         for p in permission {
-            let scope_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
+            let permission_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
             sqlx::query!(
-                "INSERT INTO api_client_permission_scopes (api_client_id, scope_id) VALUES (?, ?)",
+                "INSERT INTO client_permission (client_id, permission_id) VALUES (?, ?)",
                 self.token.id,
-                scope_id
+                permission_id
             )
             .execute(pool)
             .await?;

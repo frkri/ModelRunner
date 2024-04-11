@@ -343,7 +343,7 @@ async fn handle_status_request(
         _ => {
             client.has_permission(Permission::StatusSelf)?;
             Ok((StatusCode::OK, Json(client)))
-        },
+        }
     }
 }
 
