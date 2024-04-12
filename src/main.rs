@@ -310,7 +310,7 @@ async fn auth_middleware(
     )
     .await
     .map_err(|_| runner!(StatusCode::UNAUTHORIZED, "Failed to authenticate client"))?;
-    client.has_permission(Permission::UseSelf)?;
+    client.has_permission(&Permission::UseSelf)?;
 
     request.extensions_mut().insert(client);
     Ok(next.run(request).await)
@@ -324,26 +324,23 @@ async fn handle_health_request() -> ModelResult<StatusCode> {
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
-    Extension(client): Extension<ApiClient>,
+    Extension(mut client): Extension<ApiClient>,
     req: Option<Json<ApiClientStatusRequest>>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
-    match req {
-        Some(req) => {
-            client.has_permission(Permission::StatusOther)?;
-            let target = ApiClient::with_id(req.id.as_str(), &state.db_pool)
-                .await
-                .map_err(|_| {
-                    runner!(
-                        StatusCode::NOT_FOUND,
-                        "Failed to find any client matching ID"
-                    )
-                })?;
-            Ok((StatusCode::OK, Json(target)))
-        }
-        _ => {
-            client.has_permission(Permission::StatusSelf)?;
-            Ok((StatusCode::OK, Json(client)))
-        }
+    if let Some(req) = req {
+        client.has_permission(&Permission::StatusOther)?;
+        client = ApiClient::with_id(req.id.as_str(), &state.db_pool)
+            .await
+            .map_err(|_| {
+                runner!(
+                    StatusCode::NOT_FOUND,
+                    "Failed to find any client matching ID"
+                )
+            })?;
+        Ok((StatusCode::OK, Json(client)))
+    } else {
+        client.has_permission(&Permission::StatusSelf)?;
+        Ok((StatusCode::OK, Json(client)))
     }
 }
 
@@ -353,7 +350,7 @@ async fn handle_create_request(
     Extension(client): Extension<ApiClient>,
     Json(req): Json<ApiClientCreateRequest>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
-    client.has_permission(Permission::CreateSelf)?;
+    client.has_permission(&Permission::CreateSelf)?;
     let client = ApiClient::new(
         &state.auth,
         &req.name,
@@ -371,7 +368,7 @@ async fn handle_delete_request(
     Extension(mut client): Extension<ApiClient>,
     Json(req): Json<ApiClientDeleteRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::DeleteSelf)?;
+    client.has_permission(&Permission::DeleteSelf)?;
     if req.id != client.token.id {
         client = ApiClient::with_id(req.id.as_str(), &state.db_pool).await?;
     }
@@ -385,7 +382,7 @@ async fn handle_update_request(
     Extension(mut client): Extension<ApiClient>,
     req: Json<ApiClientUpdateRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::UpdateSelf)?;
+    client.has_permission(&Permission::UpdateSelf)?;
     if let Some(id) = &req.id {
         if id != &client.token.id {
             client = ApiClient::with_id(id.as_str(), &state.db_pool)

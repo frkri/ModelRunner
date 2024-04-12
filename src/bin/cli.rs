@@ -33,7 +33,7 @@ enum Commands {
         creator_id: Option<String>,
 
         /// Scope of permission that the key will have
-        #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::Status, Permission::Use])]
+        #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::UseSelf, Permission::StatusSelf, Permission::DeleteSelf, Permission::UpdateSelf])]
         permission: Vec<Permission>,
     },
 }
