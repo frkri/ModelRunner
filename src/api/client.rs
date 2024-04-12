@@ -215,8 +215,8 @@ impl ApiClient {
 
         Ok(client)
     }
-    pub(crate) fn has_permission(&self, permission: Permission) -> Result<()> {
-        if !self.permissions.contains(&permission) {
+    pub(crate) fn has_permission(&self, permission: &Permission) -> Result<()> {
+        if !self.permissions.contains(permission) {
             bail!(
                 "Client does not have permission to perform this action: {:?}",
                 permission
