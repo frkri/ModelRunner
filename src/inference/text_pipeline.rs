@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
@@ -21,7 +22,6 @@ use crate::inference::token_output_stream::TokenOutputStream;
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
 // https://github.com/huggingface/candle/blob/main/candle-examples/examples/quantized/main.rs
 // https://github.com/huggingface/candle/tree/main/candle-examples/examples/stable-lm
-#[derive(Debug)]
 pub struct TextGeneratorPipeline {
     pub model: Model,
     pub device: Device,
@@ -45,6 +45,22 @@ pub enum Model {
 pub enum ModelConfig {
     Phi(mixformer::Config),
     StableLm(StableLmConfig),
+}
+
+impl Debug for TextGeneratorPipeline {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextGeneratorPipeline")
+            .field("model", &self.model)
+            .field("model", &self.model)
+            .field("device", &self.device)
+            .field("tokenizer", &self.tokenizer)
+            .field("repeat_penalty", &self.repeat_penalty)
+            .field("repeat_context_size", &self.repeat_context_size)
+            .field("seed", &self.seed)
+            .field("temperature", &self.temperature)
+            .field("top_p", &self.top_p)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Clone for TextGeneratorPipeline {
