@@ -1,6 +1,6 @@
 [package]
 name = "model_runner"
-version = "1.2.2"
+version = "1.2.4"
 edition = "2021"
 repository = "https://github.com/frkri/ModelRunner"
 license = "MIT"
@@ -25,7 +25,7 @@ name = "model_runner_health"
 path = "src/bin/health.rs"
 
 [dependencies]
-anyhow = "1.0.81"
+anyhow = "1.0.82"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 tracing-opentelemetry = { version = "0.23.0", features = ["metrics"] }
@@ -37,7 +37,7 @@ opentelemetry-semantic-conventions = "0.14.0"
 tower-http = { version = "0.5.2", features = ["trace"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread", "rt", "signal"] }
 lazy_static = "1.4.0"
-reqwest = { version = "0.12.2", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.12.3", default-features = false, features = ["blocking", "rustls-tls"] }
 axum = { version = "0.7.5", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
