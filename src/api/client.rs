@@ -3,15 +3,11 @@ use std::time::SystemTime;
 
 use anyhow::Result;
 use anyhow::{anyhow, bail};
-use clap::ValueEnum;
-use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::{FromPrimitive, ToPrimitive};
+use bitflags::bitflags;
 use password_hash::rand_core::OsRng;
 use password_hash::{PasswordHash, PasswordVerifier, SaltString};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use strum::Display;
-use tokio::try_join;
 
 use crate::api::auth::{Auth, AuthToken};
 
@@ -20,7 +16,7 @@ use crate::api::auth::{Auth, AuthToken};
 pub struct ApiClient {
     pub name: Option<String>,
     pub token: AuthToken,
-    pub permissions: Vec<Permission>,
+    pub permissions: Permission,
     pub created_at: i64,
     pub updated_at: i64,
     pub created_by: Option<String>,
@@ -49,22 +45,22 @@ pub(crate) struct ApiClientUpdateRequest {
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(
-    PartialEq, Deserialize, Serialize, Clone, Debug, ValueEnum, Display, FromPrimitive, ToPrimitive,
-)]
-#[repr(i64)]
-/// Permissions are divided between targets Self and Other.
-pub enum Permission {
-    UseSelf,
-    UseOther,
-    StatusSelf,
-    StatusOther,
-    CreateSelf,
-    CreateOther,
-    DeleteSelf,
-    DeleteOther,
-    UpdateSelf,
-    UpdateOther,
+bitflags! {
+    // i64 is used to store the bitflags in the sqlite db
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    #[serde(transparent)]
+    pub struct Permission: i64 {
+        const USE_SELF        = 1 << 0;
+        const USE_OTHER       = 1 << 1;
+        const STATUS_SELF     = 1 << 2;
+        const STATUS_OTHER    = 1 << 3;
+        const CREATE_SELF     = 1 << 4;
+        const CREATE_OTHER    = 1 << 5;
+        const DELETE_SELF     = 1 << 6;
+        const DELETE_OTHER    = 1 << 7;
+        const UPDATE_SELF     = 1 << 8;
+        const UPDATE_OTHER    = 1 << 9;
+    }
 }
 
 impl Display for ApiClient {
@@ -86,7 +82,7 @@ impl ApiClient {
     pub async fn new(
         auth: &Auth,
         name: &str,
-        permission: &Vec<Permission>,
+        permission: &Permission,
         creator_id: &Option<String>,
         pool: &SqlitePool,
     ) -> Result<ApiClient> {
@@ -102,33 +98,24 @@ impl ApiClient {
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_millis()
             .try_into()?;
-        sqlx::query_as!(
-            ApiClient,
-            "INSERT INTO client (id, name, key, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+        let permission_bits: i64 = permission.bits();
+        sqlx::query!(
+            "INSERT INTO client (id, name, key, permissions, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
             token.id,
             name,
             key_hash,
+            permission_bits,
             unix_now,
             unix_now,
             creator_id
         )
             .execute(pool)
             .await?;
-        for p in permission {
-            let permission_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
-            sqlx::query!(
-                "INSERT INTO client_permission (client_id, permission_id) VALUES (?, ?)",
-                token.id,
-                permission_id
-            )
-            .execute(pool)
-            .await?;
-        }
 
         Ok(ApiClient {
             name: Some(name.to_string()),
             token,
-            permissions: permission.clone(),
+            permissions: permission.to_owned(),
             created_at: unix_now,
             updated_at: unix_now,
             created_by: creator_id.clone(),
@@ -137,24 +124,10 @@ impl ApiClient {
 
     pub(crate) async fn with_id(id: &str, pool: &SqlitePool) -> Result<Self> {
         let client_record = sqlx::query!(
-            "SELECT id, name, key, created_at, updated_at, created_by FROM client WHERE id = ?",
+            "SELECT id, name, key, permissions, created_at, updated_at, created_by FROM client WHERE id = ?",
             id
         )
-        .fetch_one(pool);
-        let client_permissions = sqlx::query!(
-            "SELECT permission_id FROM client_permission WHERE client_id = ?",
-            id
-        )
-        .fetch_all(pool);
-        let (client_record, client_permissions) = try_join!(client_record, client_permissions)?;
-        let permissions: Vec<Permission> = client_permissions
-            .iter()
-            .map(|p| {
-                Permission::from_i64(p.permission_id)
-                    .ok_or_else(|| anyhow!("Permission not found"))
-                    .unwrap()
-            })
-            .collect();
+            .fetch_one(pool).await?;
 
         Ok(ApiClient {
             name: client_record.name,
@@ -165,7 +138,8 @@ impl ApiClient {
             created_at: client_record.created_at,
             updated_at: client_record.updated_at,
             created_by: client_record.created_by,
-            permissions,
+            permissions: Permission::from_bits(client_record.permissions)
+                .ok_or_else(|| anyhow!("Permission not found"))?,
         })
     }
 
@@ -175,11 +149,10 @@ impl ApiClient {
         pool: &SqlitePool,
     ) -> Result<Self> {
         let client_record = sqlx::query!(
-            "SELECT id, name, key, created_at, updated_at, created_by FROM client WHERE id = ?",
+            "SELECT id, name, key, permissions, created_at, updated_at, created_by FROM client WHERE id = ?",
             token.id
         )
-        .fetch_one(pool)
-        .await?;
+            .fetch_one(pool).await?;
         let stored_hashed_key =
             PasswordHash::new(client_record.key.as_str()).map_err(|e| anyhow!(e))?;
         let key = token
@@ -189,34 +162,20 @@ impl ApiClient {
             .verify_password(key.as_bytes(), &stored_hashed_key)
             .map_err(|e| anyhow!(e))?;
 
-        let client_permissions = sqlx::query!(
-            "SELECT permission_id FROM client_permission WHERE client_id = ?",
-            token.id
-        )
-        .fetch_all(pool)
-        .await?;
-        let permissions: Vec<Permission> = client_permissions
-            .iter()
-            .map(|p| {
-                Permission::from_i64(p.permission_id)
-                    .ok_or_else(|| anyhow!("Permission not found"))
-                    .unwrap()
-            })
-            .collect();
-
         let client = ApiClient {
             name: client_record.name,
             token: AuthToken::from(client_record.id, stored_hashed_key),
             created_at: client_record.created_at,
             updated_at: client_record.updated_at,
             created_by: client_record.created_by,
-            permissions,
+            permissions: Permission::from_bits(client_record.permissions)
+                .ok_or_else(|| anyhow!("Permission not found"))?,
         };
 
         Ok(client)
     }
     pub(crate) fn has_permission(&self, permission: &Permission) -> Result<()> {
-        if !self.permissions.contains(permission) {
+        if !self.permissions.contains(permission.to_owned()) {
             bail!(
                 "Client does not have permission to perform this action: {:?}",
                 permission
@@ -226,53 +185,32 @@ impl ApiClient {
     }
 
     pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
-        sqlx::query!(
-            "DELETE FROM client_permission where client_id = ?",
-            self.token.id
-        )
-        .execute(pool)
-        .await?;
         sqlx::query!("DELETE FROM client WHERE id = ?", self.token.id)
             .execute(pool)
             .await?;
-
         Ok(())
     }
 
     pub(crate) async fn update(
         &self,
         name: &String,
-        permission: &Vec<Permission>,
+        permission: &Permission,
         pool: &SqlitePool,
     ) -> Result<()> {
         let unix_now: i64 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_millis()
             .try_into()?;
-        let update_query = sqlx::query!(
-            "UPDATE client SET name = ?, updated_at = ? WHERE id = ?",
+        let permission_bits = permission.bits();
+        sqlx::query!(
+            "UPDATE client SET name = ?, permissions = ?, updated_at = ? WHERE id = ?",
             name,
+            permission_bits,
             unix_now,
             self.token.id
         )
-        .execute(pool);
-        let delete_query = sqlx::query!(
-            "DELETE FROM client_permission WHERE client_id = ?",
-            self.token.id
-        )
-        .execute(pool);
-        try_join!(update_query, delete_query)?;
-
-        for p in permission {
-            let permission_id: i64 = p.to_i64().ok_or_else(|| anyhow!("Permission not found"))?;
-            sqlx::query!(
-                "INSERT INTO client_permission (client_id, permission_id) VALUES (?, ?)",
-                self.token.id,
-                permission_id
-            )
-            .execute(pool)
-            .await?;
-        }
+        .execute(pool)
+        .await?;
 
         Ok(())
     }
