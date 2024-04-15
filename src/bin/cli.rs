@@ -33,7 +33,7 @@ enum Commands {
         creator_id: Option<String>,
 
         /// Scope of permissions that the token will have
-        #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::UseSelf, Permission::StatusSelf, Permission::DeleteSelf, Permission::UpdateSelf])]
+        #[clap(short, long, value_parser = clap::value_parser ! (Permission), num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::USE_SELF, Permission::STATUS_SELF, Permission::DELETE_SELF, Permission::UPDATE_SELF])]
         permission: Vec<Permission>,
     },
 }
@@ -56,9 +56,14 @@ async fn main() -> Result<()> {
             permission,
             creator_id,
         } => {
-            let client =
-                ApiClient::new(&state.auth, &name, &permission, &creator_id, &state.db_pool)
-                    .await?;
+            let client = ApiClient::new(
+                &state.auth,
+                &name,
+                &permission.iter().cloned().collect::<Permission>(),
+                &creator_id,
+                &state.db_pool,
+            )
+            .await?;
             println!("Generated new API client token:\n{}", &client);
         }
     }

@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::str::FromStr;
 use std::time::SystemTime;
 
 use anyhow::Result;
@@ -60,6 +61,20 @@ bitflags! {
         const DELETE_OTHER    = 1 << 7;
         const UPDATE_SELF     = 1 << 8;
         const UPDATE_OTHER    = 1 << 9;
+    }
+}
+
+impl FromStr for Permission {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Permission::from_name(s).ok_or_else(|| anyhow!("Invalid permission"))
+    }
+}
+
+impl Display for Permission {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        bitflags::parser::to_writer(self, f)
     }
 }
 
