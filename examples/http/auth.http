@@ -15,11 +15,11 @@ authorization: Bearer {{api_key}}
 {
   "name": "new_api_key",
   "permissions": [
-    "UseSelf",
-    "StatusSelf",
-    "CreateSelf",
-    "UpdateSelf",
-    "DeleteSelf"
+    "USE_SELF",
+    "STATUS_SELF",
+    "CREATE_SELF",
+    "UPDATE_SELF",
+    "DELETE_SELF"
   ]
 }
 
@@ -40,5 +40,5 @@ authorization: Bearer {{api_key}}
 {
   "id": "{{api_id}}",
   "name": "updated_key",
-  "permissions": ["UseSelf", "StatusSelf", "CreateSelf", "UpdateSelf", "DeleteSelf"]
+  "permissions": ["USE_SELF", "STATUS_SELF", "CREATE_SELF", "UPDATE_SELF", "DELETE_SELF"]
 }
