@@ -23,16 +23,16 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
-    GenerateKey {
-        /// Name of the API key
+    GenerateToken {
+        /// Name of the token
         #[clap(short, long)]
         name: String,
 
-        /// Creator ID
+        /// Creator ID that will be associated with the token
         #[clap(short, long)]
         creator_id: Option<String>,
 
-        /// Scope of permission that the key will have
+        /// Scope of permissions that the token will have
         #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', default_values_t = vec ! [Permission::UseSelf, Permission::StatusSelf, Permission::DeleteSelf, Permission::UpdateSelf])]
         permission: Vec<Permission>,
     },
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     let state = AppState { db_pool, auth };
 
     match args.cmd {
-        Commands::GenerateKey {
+        Commands::GenerateToken {
             name,
             permission,
             creator_id,
@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
             let client =
                 ApiClient::new(&state.auth, &name, &permission, &creator_id, &state.db_pool)
                     .await?;
-            println!("Generated new API client:\n{}", &client);
+            println!("Generated new API client token:\n{}", &client);
         }
     }
     Ok(())
