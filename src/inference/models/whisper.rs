@@ -23,12 +23,7 @@ impl Clone for WhisperModel {
 }
 
 impl WhisperModel {
-    #[tracing::instrument(
-        level = "debug",
-        skip(
-            api
-        )
-    )]
+    #[tracing::instrument(level = "debug", skip(api))]
     pub fn new(
         api: Api,
         base: &ModelBase,
