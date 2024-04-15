@@ -17,7 +17,7 @@ docker compose rm -sf
 
 You can pick and choose which services you need using the `-f` flag.
 
-In this example below both the [`traefik`](traefik/compose.yml) and [`watchtower`](watchtower/compose.yml) compose files
+In this example below both the [`traefik/compose.yml`](traefik/compose.yml) and [`watchtower/compose.yml`](watchtower/compose.yml) compose files
 depend on the base [`compose.yml`](compose.yml) file meaning that modelrunner is always included.
 
 > [!NOTE]
