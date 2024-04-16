@@ -16,7 +16,7 @@ where
     samples.extend(data.chan(0).iter().map(|v| f32::from_sample(*v)));
 }
 
-pub(crate) fn pcm_decode(cursor: Cursor<Box<[u8]>>) -> anyhow::Result<(Vec<f32>, u32)> {
+pub fn pcm_decode(cursor: Cursor<Box<[u8]>>) -> anyhow::Result<(Vec<f32>, u32)> {
     // Create the media source stream.
     let mss = MediaSourceStream::new(Box::new(cursor), MediaSourceStreamOptions::default());
 

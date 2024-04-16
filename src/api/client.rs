@@ -68,7 +68,7 @@ impl FromStr for Permission {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Permission::from_name(s).ok_or_else(|| anyhow!("Invalid permission"))
+        Self::from_name(s).ok_or_else(|| anyhow!("Invalid permission"))
     }
 }
 
@@ -100,7 +100,7 @@ impl ApiClient {
         permission: &Permission,
         creator_id: &Option<String>,
         pool: &SqlitePool,
-    ) -> Result<ApiClient> {
+    ) -> Result<Self> {
         let salt = SaltString::generate(&mut OsRng);
         let token = AuthToken::new(&auth.argon, &salt)?;
         let key_hash = &token
@@ -127,7 +127,7 @@ impl ApiClient {
             .execute(pool)
             .await?;
 
-        Ok(ApiClient {
+        Ok(Self {
             name: Some(name.to_string()),
             token,
             permissions: permission.to_owned(),
@@ -144,7 +144,7 @@ impl ApiClient {
         )
             .fetch_one(pool).await?;
 
-        Ok(ApiClient {
+        Ok(Self {
             name: client_record.name,
             token: AuthToken::from(
                 client_record.id,
@@ -177,7 +177,7 @@ impl ApiClient {
             .verify_password(key.as_bytes(), &stored_hashed_key)
             .map_err(|e| anyhow!(e))?;
 
-        let client = ApiClient {
+        let client = Self {
             name: client_record.name,
             token: AuthToken::from(client_record.id, stored_hashed_key),
             created_at: client_record.created_at,

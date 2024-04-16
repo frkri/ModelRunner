@@ -17,7 +17,7 @@ pub struct Mistral7BModel {
 
 impl Clone for Mistral7BModel {
     fn clone(&self) -> Self {
-        Mistral7BModel {
+        Self {
             generator_pipeline: self.generator_pipeline.clone(),
         }
     }
@@ -34,7 +34,7 @@ impl Mistral7BModel {
         let repo = api.repo(Repo::with_revision(
             base.repo_id,
             RepoType::Model,
-            base.repo_revision.clone(),
+            base.repo_revision,
         ));
         let mistral_repo = api.repo(Repo::with_revision(
             "mistralai/Mistral-7B-Instruct-v0.1".into(),
@@ -55,7 +55,7 @@ impl Mistral7BModel {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(Mistral7BModel { generator_pipeline })
+        Ok(Self { generator_pipeline })
     }
 }
 
@@ -63,7 +63,7 @@ impl RawHandler for Mistral7BModel {
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
-            request.model_config.seed.unwrap_or(random()),
+            request.model_config.seed.unwrap_or_else(random),
             request.model_config.temperature,
             request.model_config.top_p,
         );

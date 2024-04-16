@@ -47,13 +47,13 @@ pub enum ModelConfig {
 }
 
 impl Clone for TextGeneratorPipeline {
-    fn clone(&self) -> TextGeneratorPipeline {
-        TextGeneratorPipeline {
+    fn clone(&self) -> Self {
+        Self {
             model: self.model.clone(),
             device: self.device.clone(),
             tokenizer: self.tokenizer.clone(),
             logits_processor: LogitsProcessor::new(
-                self.seed.unwrap_or(random()),
+                self.seed.unwrap_or_else(random),
                 self.temperature,
                 self.top_p,
             ),
@@ -79,7 +79,7 @@ impl TextGeneratorPipeline {
         top_p: Option<f64>,
         repeat_penalty: f32,
         repeat_context_size: usize,
-    ) -> Result<TextGeneratorPipeline> {
+    ) -> Result<Self> {
         let tokenizer_file = repo.get(tokenizer_filename)?;
         let gguf_file = repo.get(gguf_filename)?;
 
@@ -104,11 +104,11 @@ impl TextGeneratorPipeline {
         };
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
-        let pipeline = TextGeneratorPipeline {
+        let pipeline = Self {
             model,
             device,
             tokenizer,
-            logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
+            logits_processor: LogitsProcessor::new(seed.unwrap_or_else(random), temperature, top_p),
             repeat_penalty,
             repeat_context_size,
             seed,
@@ -130,7 +130,7 @@ impl TextGeneratorPipeline {
         top_p: Option<f64>,
         repeat_penalty: f32,
         repeat_context_size: usize,
-    ) -> Result<TextGeneratorPipeline> {
+    ) -> Result<Self> {
         let gguf_file = repo.get(gguf_filename)?;
         let mut file = std::fs::File::open(&gguf_file)?;
 
@@ -140,7 +140,7 @@ impl TextGeneratorPipeline {
         let model_weights = Some(ModelWeights::from_gguf(model_reader, &mut file, &device)?);
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
-        let pipeline = TextGeneratorPipeline {
+        let pipeline = Self {
             model: match model {
                 Model::Mistral(_) => Model::Mistral(model_weights),
                 Model::OpenHermes(_) => Model::OpenHermes(model_weights),
@@ -148,7 +148,7 @@ impl TextGeneratorPipeline {
             },
             device: Device::Cpu,
             tokenizer,
-            logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
+            logits_processor: LogitsProcessor::new(seed.unwrap_or_else(random), temperature, top_p),
             repeat_penalty,
             repeat_context_size,
             seed,

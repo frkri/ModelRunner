@@ -1,9 +1,13 @@
-#![warn(clippy::correctness)]
-#![warn(clippy::complexity)]
-#![warn(clippy::suspicious)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::cargo)]
-#![warn(clippy::perf)]
+#![warn(
+    clippy::correctness,
+    clippy::complexity,
+    clippy::suspicious,
+    clippy::pedantic,
+    clippy::cargo,
+    clippy::perf,
+    clippy::style,
+    clippy::nursery
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
@@ -37,6 +41,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+
 #[cfg(unix)]
 use tikv_jemallocator::Jemalloc;
 
@@ -293,6 +298,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::redundant_pub_crate)]
 async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
@@ -360,11 +366,11 @@ async fn handle_status_request(
                     "Failed to find any client matching ID"
                 )
             })?;
-        Ok((StatusCode::OK, Json(client)))
     } else {
         client.has_permission(&Permission::STATUS_SELF)?;
-        Ok((StatusCode::OK, Json(client)))
     }
+
+    Ok((StatusCode::OK, Json(client)))
 }
 
 #[axum_macros::debug_handler]

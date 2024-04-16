@@ -18,13 +18,13 @@ pub struct HttpErrorResponse {
 
 impl From<String> for HttpErrorResponse {
     fn from(message: String) -> Self {
-        HttpErrorResponse { error: message }
+        Self { error: message }
     }
 }
 
 impl From<&str> for HttpErrorResponse {
     fn from(message: &str) -> Self {
-        HttpErrorResponse {
+        Self {
             error: message.to_string(),
         }
     }
@@ -49,7 +49,7 @@ where
     E: Into<anyhow::Error>,
 {
     fn from(err: E) -> Self {
-        ModelRunnerError {
+        Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: HttpErrorResponse::from(err.into().to_string()),
         }

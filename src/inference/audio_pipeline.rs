@@ -40,8 +40,8 @@ pub struct AudioGeneratorPipeline {
 }
 
 impl Clone for AudioGeneratorPipeline {
-    fn clone(&self) -> AudioGeneratorPipeline {
-        AudioGeneratorPipeline {
+    fn clone(&self) -> Self {
+        Self {
             model: self.model.clone(),
             tokenizer: self.tokenizer.clone(),
             config: self.config.clone(),
@@ -68,7 +68,7 @@ impl AudioGeneratorPipeline {
         mel_filters_filename: &str,
         timestamps: bool,
         seed: rand::rngs::StdRng,
-    ) -> Result<AudioGeneratorPipeline> {
+    ) -> Result<Self> {
         let config_path = repo.get(config_filename)?;
         let tokenizer_path = repo.get(tokenizer_filename)?;
         let model_path = repo.get(gguf_filename)?;
@@ -111,7 +111,7 @@ impl AudioGeneratorPipeline {
             Some(n) => n,
         };
 
-        Ok(AudioGeneratorPipeline {
+        Ok(Self {
             model,
             tokenizer,
             config,
