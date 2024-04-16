@@ -72,6 +72,7 @@ jobs:
         with:
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+          EXTRA_FILES: "README.md LICENSE ModelRunner.toml.example"
 
   image:
     name: Publish docker image ${{ matrix.suffix }}

@@ -37,6 +37,8 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+#[cfg(unix)]
+use tikv_jemallocator::Jemalloc;
 
 use crate::api::auth::{Auth, AuthToken};
 use crate::api::client::{ApiClient, ApiClientCreateRequest, ApiClientDeleteRequest, Permission};
@@ -59,6 +61,10 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+
+#[cfg(unix)]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 pub mod api;
 mod config;
@@ -146,7 +152,7 @@ lazy_static! {
     )
     .map_err(|e| error!("Failed to create OpenHermes model: {}", e))
     .unwrap();
-    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+    static ref STABLELM2_ZEPHYR_MODEL: StableLm2Model = StableLm2Model::new(
         &Api::new().expect("Failed to create API"),
         &ModelBase {
             name: "Quantized StableLM 2 Zephyr 1.6B".into(),
@@ -158,6 +164,23 @@ lazy_static! {
         "tokenizer-gpt4.json",
         "stablelm-2-zephyr-1_6b-q4k.gguf",
         &GeneralModelConfig::default(),
+        true,
+    )
+    .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
+    .unwrap();
+    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
+            name: "Quantized StableLM 2 1.6B".into(),
+            license: "StabilityAI Non-Commercial Research Community License".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "lmz/candle-stablelm".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-gpt4.json",
+        "stablelm-2-1_6b-q4k.gguf",
+        &GeneralModelConfig::default(),
+        false,
     )
     .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
     .unwrap();
@@ -414,6 +437,10 @@ async fn handle_raw_request(
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
         )),
         "openhermes" => Ok((StatusCode::OK, Json(OPENHERMES_MODEL.clone().run_raw(req)?))),
+        "stablelm2zephyr" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_ZEPHYR_MODEL.clone().run_raw(req)?),
+        )),
         "stablelm2" => Ok((StatusCode::OK, Json(STABLELM2_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
@@ -432,6 +459,10 @@ async fn handle_instruct_request(
         "openhermes" => Ok((
             StatusCode::OK,
             Json(OPENHERMES_MODEL.clone().run_instruct(req)?),
+        )),
+        "stablelm2zephyr" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_ZEPHYR_MODEL.clone().run_instruct(req)?),
         )),
         "stablelm2" => Ok((
             StatusCode::OK,

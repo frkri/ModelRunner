@@ -31,13 +31,24 @@ authorization: Bearer {{api_key}}
   "max_length": 150
 }
 
-### StableLM 2 Zephyr 1.6B
+### StableLM 2 1.6B
 POST http://{{host}}:{{port}}/text/instruct
 content-type: application/json
 authorization: Bearer {{api_key}}
 
 {
   "model": "stablelm2",
+  "input": "Give me a detailed report about tomorrows sunny weather.",
+  "max_length": 150
+}
+
+### StableLM 2 Zephyr 1.6B
+POST http://{{host}}:{{port}}/text/instruct
+content-type: application/json
+authorization: Bearer {{api_key}}
+
+{
+  "model": "stablelm2zephyr",
   "input": "Give me a detailed report about tomorrows sunny weather.",
   "max_length": 150
 }

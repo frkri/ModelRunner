@@ -1,10 +1,10 @@
 [package]
 name = "model_runner"
-version = "1.2.4"
+version = "1.3.0"
 edition = "2021"
 repository = "https://github.com/frkri/ModelRunner"
 license = "MIT"
-description = "Allows you to run LLM models locally with an HTTP API"
+description = "Run LLM models locally with an HTTP API"
 keywords = ["LLM", "API", "HTTP"]
 readme = "README.md"
 
@@ -36,7 +36,7 @@ axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 serde = { version = "1.0.197", features = ["serde_derive"] }
-serde_json = "1.0.115"
+serde_json = "1.0.116"
 toml = "0.8.12"
 clap = { version = "4.5.4", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
@@ -54,3 +54,6 @@ argon2 = "0.5.3"
 base64ct = "1.6.0"
 url = "2.5.0"
 bitflags = { version = "2.5.0", features = ["serde"] }
+
+[target.'cfg(unix)'.dependencies]
+tikv-jemallocator = "0.5.4"

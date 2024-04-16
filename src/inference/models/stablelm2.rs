@@ -11,16 +11,10 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::text_pipeline::{Model, ModelConfig, TextGeneratorPipeline};
 use crate::ModelBase;
 
+#[derive(Clone)]
 pub struct StableLm2Model {
     generator_pipeline: TextGeneratorPipeline,
-}
-
-impl Clone for StableLm2Model {
-    fn clone(&self) -> Self {
-        StableLm2Model {
-            generator_pipeline: self.generator_pipeline.clone(),
-        }
-    }
+    insert_prompt: bool,
 }
 
 impl StableLm2Model {
@@ -30,6 +24,7 @@ impl StableLm2Model {
         tokenizer_filename: &str,
         gguf_filename: &str,
         general_model_config: &GeneralModelConfig,
+        insert_prompt: bool,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
             base.repo_id.clone(),
@@ -57,7 +52,10 @@ impl StableLm2Model {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(StableLm2Model { generator_pipeline })
+        Ok(StableLm2Model {
+            generator_pipeline,
+            insert_prompt,
+        })
     }
 }
 
@@ -84,7 +82,11 @@ impl RawHandler for StableLm2Model {
 
 impl InstructHandler for StableLm2Model {
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
-        let prompt = format!("<|user|>\n{}<|endoftext|>\n<|assistant|>\n", request.input);
+        let prompt = if self.insert_prompt {
+            format!("<|user|>\n{}<|endoftext|>\n<|assistant|>\n", request.input)
+        } else {
+            request.input
+        };
         let (output, inference_time) = self
             .generator_pipeline
             .generate(&prompt, request.max_length)?;
