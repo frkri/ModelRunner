@@ -4,7 +4,7 @@ version = "1.2.4"
 edition = "2021"
 repository = "https://github.com/frkri/ModelRunner"
 license = "MIT"
-description = "Allows you to run LLM models locally with an HTTP API"
+description = "Run LLM models locally with an HTTP API"
 keywords = ["LLM", "API", "HTTP"]
 readme = "README.md"
 
