@@ -32,6 +32,9 @@ use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 
+#[cfg(unix)]
+use tikv_jemallocator::Jemalloc;
+
 use crate::api::api_client::{
     ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
 };
@@ -58,6 +61,10 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+
+#[cfg(unix)]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 pub mod api;
 mod config;
