@@ -74,7 +74,7 @@ impl TokenOutputStream {
         }
     }
 
-    pub fn tokenizer(&self) -> &tokenizers::Tokenizer {
+    pub const fn tokenizer(&self) -> &tokenizers::Tokenizer {
         &self.tokenizer
     }
 

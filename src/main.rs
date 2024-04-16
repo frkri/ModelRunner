@@ -1,25 +1,35 @@
-#![warn(clippy::correctness)]
-#![warn(clippy::complexity)]
-#![warn(clippy::suspicious)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::cargo)]
-#![warn(clippy::perf)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::multiple_crate_versions)]
-#![allow(clippy::cargo_common_metadata)]
+#![warn(
+    clippy::correctness,
+    clippy::complexity,
+    clippy::suspicious,
+    clippy::pedantic,
+    clippy::cargo,
+    clippy::perf,
+    clippy::style,
+    clippy::nursery
+)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::multiple_crate_versions,
+    clippy::cargo_common_metadata
+)]
 
 use std::net::SocketAddr;
 use std::option::Option;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
-use axum::{middleware, Json, Router};
+use axum::{middleware, Extension, Json, Router};
+use axum_extra::headers::authorization::Bearer;
+use axum_extra::headers::Authorization;
+use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use candle_transformers::models::mixformer;
@@ -35,17 +45,12 @@ use sqlx::SqlitePool;
 #[cfg(unix)]
 use tikv_jemallocator::Jemalloc;
 
-use crate::api::api_client::{
-    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
-};
-use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
-use crate::api::auth::extract_auth_header;
-use crate::api::auth::extract_id_key;
-use crate::api::auth::Auth;
+use crate::api::auth::{Auth, AuthToken};
+use crate::api::client::{ApiClient, ApiClientCreateRequest, ApiClientDeleteRequest, Permission};
+use crate::api::client::{ApiClientStatusRequest, ApiClientUpdateRequest};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -69,7 +74,6 @@ static GLOBAL: Jemalloc = Jemalloc;
 pub mod api;
 mod config;
 pub mod error;
-mod extractors;
 mod inference;
 
 #[derive(Parser)]
@@ -294,6 +298,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::redundant_pub_crate)]
 async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
@@ -323,21 +328,20 @@ async fn shutdown_handler(handle: Handle) {
 
 async fn auth_middleware(
     State(state): State<AppState>,
-    request: Request,
+    TypedHeader(auth_header): TypedHeader<Authorization<Bearer>>,
+    mut request: Request,
     next: Next,
 ) -> ModelResult<Response> {
-    let header_value = extract_auth_header(request.headers())?;
-    if !state
-        .auth
-        .check_api_key(header_value, &state.db_pool)
-        .await?
-    {
-        bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
-    }
+    let client = ApiClient::with_token(
+        &state.auth,
+        AuthToken::from_raw_str(auth_header.token())?,
+        &state.db_pool,
+    )
+    .await
+    .map_err(|_| runner!(StatusCode::UNAUTHORIZED, "Failed to authenticate client"))?;
+    client.has_permission(&Permission::USE_SELF)?;
 
-    let (id, _) = extract_id_key(header_value)?;
-    let client = ApiClient::from(id, &state.db_pool).await?;
-    client.has_permission(Permission::Use)?;
+    request.extensions_mut().insert(client);
     Ok(next.run(request).await)
 }
 
@@ -349,49 +353,53 @@ async fn handle_health_request() -> ModelResult<StatusCode> {
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     req: Option<Json<ApiClientStatusRequest>>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
-    match req {
-        Some(req) => {
-            client.has_permission(Permission::Status)?;
-            let target = ApiClient::from(req.id.as_str(), &state.db_pool)
-                .await
-                .map_err(|_| anyhow!("Failed to find any client matching ID"))?;
-            Ok((StatusCode::OK, Json(target)))
-        }
-        _ => Ok((StatusCode::OK, Json(client))),
+    if let Some(req) = req {
+        client.has_permission(&Permission::STATUS_OTHER)?;
+        client = ApiClient::with_id(req.id.as_str(), &state.db_pool)
+            .await
+            .map_err(|_| {
+                runner!(
+                    StatusCode::NOT_FOUND,
+                    "Failed to find any client matching ID"
+                )
+            })?;
+    } else {
+        client.has_permission(&Permission::STATUS_SELF)?;
     }
+
+    Ok((StatusCode::OK, Json(client)))
 }
 
 #[axum_macros::debug_handler]
 async fn handle_create_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    Extension(client): Extension<ApiClient>,
     Json(req): Json<ApiClientCreateRequest>,
-) -> ModelResult<(StatusCode, Json<ApiClientCreateResponse>)> {
-    client.has_permission(Permission::Create)?;
-    let key = state
-        .auth
-        .create_api_key(
-            &req.name,
-            &req.permissions,
-            &Some(client.id),
-            &state.db_pool,
-        )
-        .await?;
-    Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
+) -> ModelResult<(StatusCode, Json<ApiClient>)> {
+    client.has_permission(&Permission::CREATE_SELF)?;
+    let client = ApiClient::new(
+        &state.auth,
+        &req.name,
+        &req.permissions.iter().cloned().collect::<Permission>(),
+        &Some(client.token.id),
+        &state.db_pool,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(client)))
 }
 
 #[axum_macros::debug_handler]
 async fn handle_delete_request(
     State(state): State<AppState>,
-    ApiClientExtractor(mut client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     Json(req): Json<ApiClientDeleteRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::Delete)?;
-    if req.id != client.id {
-        client = ApiClient::from(req.id.as_str(), &state.db_pool).await?;
+    client.has_permission(&Permission::DELETE_SELF)?;
+    if req.id != client.token.id {
+        client = ApiClient::with_id(req.id.as_str(), &state.db_pool).await?;
     }
     client.delete(&state.db_pool).await?;
     Ok(StatusCode::OK)
@@ -400,19 +408,27 @@ async fn handle_delete_request(
 #[axum_macros::debug_handler]
 async fn handle_update_request(
     State(state): State<AppState>,
-    ApiClientExtractor(mut client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     req: Json<ApiClientUpdateRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::Update)?;
     if let Some(id) = &req.id {
-        if id != &client.id {
-            client = ApiClient::from(id.as_str(), &state.db_pool).await?;
+        if id != &client.token.id {
+            client.has_permission(&Permission::UPDATE_OTHER)?;
+            client = ApiClient::with_id(id.as_str(), &state.db_pool)
+                .await
+                .map_err(|_| runner!(StatusCode::NOT_FOUND, "Failed to find client by ID"))?;
         }
+    } else {
+        client.has_permission(&Permission::UPDATE_SELF)?;
     }
-    client
-        .update(&req.name, &req.permissions, &state.db_pool)
-        .await?;
 
+    client
+        .update(
+            &req.name,
+            &req.permissions.iter().cloned().collect::<Permission>(),
+            &state.db_pool,
+        )
+        .await?;
     Ok(StatusCode::OK)
 }
 

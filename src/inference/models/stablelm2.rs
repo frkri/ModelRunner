@@ -52,7 +52,7 @@ impl StableLm2Model {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(StableLm2Model {
+        Ok(Self {
             generator_pipeline,
             insert_prompt,
         })
@@ -63,7 +63,7 @@ impl RawHandler for StableLm2Model {
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
-            request.model_config.seed.unwrap_or(random()),
+            request.model_config.seed.unwrap_or_else(random),
             request.model_config.temperature,
             request.model_config.top_p,
         );

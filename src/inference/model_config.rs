@@ -12,7 +12,7 @@ pub struct GeneralModelConfig {
 
 impl Default for GeneralModelConfig {
     fn default() -> Self {
-        GeneralModelConfig {
+        Self {
             seed: random(),
             temperature: Some(0.8),
             top_p: Some(0.9),
