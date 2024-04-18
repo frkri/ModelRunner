@@ -40,7 +40,7 @@ serde_json = "1.0.116"
 toml = "0.8.12"
 clap = { version = "4.5.4", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
-tokenizers = "0.19.0"
+tokenizers = "0.19.1"
 hf-hub = "0.3.2"
 candle-transformers = "0.4.0"
 candle-core = "0.4.0"
