@@ -50,7 +50,9 @@ service:
       processors: [ batch ]
       exporters: [ loki/logs ]
     metrics:
-      receivers: [ otlp ]
+      receivers:
+        - otlp
+        - prometheus
       processors: [ batch ]
       exporters: [ otlphttp/metrics ]
     traces:
