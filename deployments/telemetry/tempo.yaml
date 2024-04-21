@@ -20,11 +20,9 @@ metrics_generator:
   registry:
     external_labels:
       source: tempo
-      cluster: docker-compose
-  #storage:
-  #  path: /var/tempo/generator/wal
-  #  remote_write:
-  #    - url: http://prometheus:9090/api/v1/write
+      cluster: modelrunner
+  storage:
+    path: /var/tempo/generator/wal
   traces_storage:
     path: /var/tempo/generator/traces
 
@@ -36,5 +34,5 @@ storage:
     local:
       path: /var/tempo/blocks
 
-overrides:
+overrides: # todo
   metrics_generator_processors: [ 'service-graphs', 'span-metrics','local-blocks' ]
