@@ -30,12 +30,11 @@ depend on the base [`compose.yml`](compose.yml) file meaning that modelrunner is
 docker compose -f traefik/compose.yml -f watchtower/compose.yml up -d
 # Checking logs
 docker compose -f traefik/compose.yml -f watchtower/compose.yml logs
-# D
 # Cleanup
 docker compose -f traefik/compose.yml -f watchtower/compose.yml rm -sf
 ```
 
-## Setting up cloudflare tunnel
+## Setup up cloudflare tunnel
 
 The tunnel can be [`remotely managed`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/) through the dashboard or with a config file.
 Here the first method is used as an example.
