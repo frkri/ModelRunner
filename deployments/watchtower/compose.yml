@@ -9,4 +9,6 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 600 # Every 10 minutes
+    command: --cleanup --scope modelrunner --rolling-restart --interval 1800 # Every 30 minutes
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
