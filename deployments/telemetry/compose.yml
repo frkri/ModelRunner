@@ -14,44 +14,45 @@ services:
       - '/var/lib/model-runner/grafana:/var/lib/grafana'
       - '../telemetry/grafana.ini:/etc/grafana/grafana.ini'
     labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`) || PathPrefix(`/grafana`)"
     networks:
       - mesh
 
-  otel-collector: # Not expected to be access externally, so no traefik labels.
+  otel-collector:
     container_name: otel-collector
     image: otel/opentelemetry-collector-contrib
     restart: unless-stopped
-    ports:
-      - 4317:4317 # OTLP gRPC receiver endpoint
     volumes:
       - ../telemetry/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
 
-  prometheus: # Not expected to be access externally, so no traefik labels
+  prometheus:
     container_name: prometheus
     image: prom/prometheus
     restart: unless-stopped
     command:
       - "--enable-feature=otlp-write-receiver" # Native OpenTelemetry HTTP receiver
-    ports:
-      - 9090:9090
     volumes:
       - ../telemetry/prometheus.yml:/prometheus/prometheus.yml
     networks:
       - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
 
-  loki: # Not expected to be access externally, so no traefik labels
+  loki:
     container_name: loki
     image: grafana/loki
     restart: unless-stopped
-    ports:
-      - 3100:3100
     volumes:
       - ../telemetry/loki.yaml:/etc/loki/local-config.yaml
       - /var/lib/model-runner/loki:/loki
     networks:
       - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"

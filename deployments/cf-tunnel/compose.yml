@@ -12,3 +12,5 @@ services:
       TUNNEL_TOKEN: <YOUR_TOKEN>
     networks:
       - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"

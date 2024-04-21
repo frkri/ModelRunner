@@ -35,6 +35,13 @@ services:
       - /var/lib/model-runner:/ModelRunner/db # Database dir for the SQLite database file, to be used with the SQLITE_FILE_PATH environment variable
     networks:
       - mesh
+    labels: # Additional labels for other services
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
+      - "traefik.enable=true"
+      - "traefik.http.routers.modelrunner.entrypoints=web"
+      - "traefik.http.routers.modelrunner.rule=Host(`modelrunner.localhost`) || PathPrefix(`/modelrunner`)"
+      - "traefik.http.middlewares.modelrunner_striprefix.stripprefix.prefixes=/api"
+      - "traefik.http.routers.modelrunner.middlewares=modelrunner_striprefix@docker"
     # configs:
     #  - source: model_runner_config
     #    target: /ModelRunner/ModelRunner.toml

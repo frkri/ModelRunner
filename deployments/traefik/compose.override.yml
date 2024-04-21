@@ -1,8 +1,0 @@
-services:
-  modelrunner:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.modelrunner.entrypoints=web"
-      - "traefik.http.routers.modelrunner.rule=Host(`modelrunner.localhost`) || PathPrefix(`/api`)"
-      - "traefik.http.middlewares.modelrunner_striprefix.stripprefix.prefixes=/api"
-      - "traefik.http.routers.modelrunner.middlewares=modelrunner_striprefix@docker"
