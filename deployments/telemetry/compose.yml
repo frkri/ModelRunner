@@ -3,6 +3,7 @@ include:
       - ../compose.yml
 
 services:
+  # Visualizes the telemetry data
   grafana: # todo auto setup datasources and dashboards
     container_name: grafana
     image: grafana/grafana-oss
@@ -21,6 +22,7 @@ services:
     networks:
       - mesh
 
+  # Collects telemetry data
   otel-collector:
     container_name: otel-collector
     image: otel/opentelemetry-collector-contrib
@@ -32,6 +34,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.scope=modelrunner"
 
+  # Stores metrics
   prometheus:
     container_name: prometheus
     image: prom/prometheus
@@ -45,7 +48,8 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.scope=modelrunner"
 
-  loki:
+  # Stores logs
+  loki: # todo
     container_name: loki
     image: grafana/loki
     restart: unless-stopped
@@ -54,5 +58,17 @@ services:
       - /var/lib/model-runner/loki:/loki
     networks:
       - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
+
+  # Stores traces
+  tempo:
+    container_name: tempo
+    image: grafana/tempo
+    restart: unless-stopped
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ../telemetry/tempo.yaml:/etc/tempo.yaml
+      - /var/lib/model-runner/tempo:/var/tempo
     labels:
       - "com.centurylinklabs.watchtower.scope=modelrunner"
