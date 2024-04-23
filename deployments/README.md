@@ -9,11 +9,16 @@ The base config [`compose.yml`](compose.yml) contains only modelrunner itself an
 Use this to get started with the most basic setup.
 
 ```bash
-# Startup -> start container in detached mode
+# Start -> start container in detached mode
 docker compose up -d
+
 # Logs -> check logs
 docker compose logs
-# Cleanup -> stop and remove container
+
+# Stop -> stop containers
+docker compose stop
+
+# Cleanup -> force stop and remove containers
 docker compose rm -sf
 ```
 
@@ -26,10 +31,15 @@ and [`watchtower/compose.yml`](watchtower/compose.yml) compose files
 depend on the base [`compose.yml`](compose.yml) file meaning that modelrunner is always included.
 
 ```bash
-# Startup
+# Start
 docker compose -f traefik/compose.yml -f watchtower/compose.yml up -d
-# Checking logs
+
+# Logs
 docker compose -f traefik/compose.yml -f watchtower/compose.yml logs
+
+# Stop
+docker compose -f traefik/compose.yml -f watchtower/compose.yml stop
+
 # Cleanup
 docker compose -f traefik/compose.yml -f watchtower/compose.yml rm -sf
 ```
