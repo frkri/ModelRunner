@@ -4,7 +4,7 @@ include:
 
 services:
   # Visualizes the telemetry data
-  grafana: # todo auto setup datasources and dashboards
+  grafana:
     container_name: grafana
     image: grafana/grafana-oss
     restart: unless-stopped
@@ -13,7 +13,10 @@ services:
       - '3000:3000'
     volumes:
       - '/var/lib/model-runner/grafana:/var/lib/grafana'
-      - '../telemetry/grafana.ini:/etc/grafana/grafana.ini'
+      - '../telemetry/config/grafana/grafana.ini:/etc/grafana/grafana.ini'
+      - '../telemetry/config/grafana/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml'
+      - '../telemetry/config/grafana/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml'
+      - '../telemetry/config/grafana/dashboards:/var/lib/grafana/dashboards'
     labels:
       - "com.centurylinklabs.watchtower.scope=modelrunner"
       - "traefik.enable=true"
@@ -28,7 +31,7 @@ services:
     image: otel/opentelemetry-collector-contrib
     restart: unless-stopped
     volumes:
-      - ../telemetry/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
+      - ../telemetry/config/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - mesh
     labels:
@@ -42,7 +45,7 @@ services:
     command:
       - "--enable-feature=otlp-write-receiver" # Native OpenTelemetry HTTP receiver
     volumes:
-      - ../telemetry/prometheus.yml:/prometheus/prometheus.yml
+      - ../telemetry/config/prometheus/prometheus.yml:/prometheus/prometheus.yml
     networks:
       - mesh
     labels:
@@ -54,7 +57,7 @@ services:
     image: grafana/loki
     restart: unless-stopped
     volumes:
-      - ../telemetry/loki.yaml:/etc/loki/local-config.yaml
+      - ../telemetry/config/loki/loki.yaml:/etc/loki/local-config.yaml
       - /var/lib/model-runner/loki:/loki
     networks:
       - mesh
@@ -69,7 +72,7 @@ services:
     restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]
     volumes:
-      - ../telemetry/tempo.yaml:/etc/tempo.yaml
+      - ../telemetry/config/tempo/tempo.yaml:/etc/tempo.yaml
       - /var/lib/model-runner/tempo:/var/tempo
     networks:
       - mesh
