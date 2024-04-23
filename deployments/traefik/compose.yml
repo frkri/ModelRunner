@@ -15,7 +15,7 @@ services:
       # - 8080:8080 # Uncomment to enable the dashboard and API port
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ../traefik/config/traefik/traefik.yml:/etc/traefik/traefik.yml
     networks:
       - mesh
     labels:
