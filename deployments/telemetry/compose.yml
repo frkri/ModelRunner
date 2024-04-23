@@ -66,7 +66,6 @@ services:
     container_name: tempo
     image: grafana/tempo
     restart: unless-stopped
-    user: '0'
     command: [ "-config.file=/etc/tempo.yaml" ]
     volumes:
       - ../telemetry/tempo.yaml:/etc/tempo.yaml
