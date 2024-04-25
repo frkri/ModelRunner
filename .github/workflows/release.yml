@@ -52,18 +52,6 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"${TAG_VERSION:1}\"/" Cargo.toml
           awk -v tag="${TAG_VERSION:1}" '/name = "model_runner"/{getline; sub(/version = ".+"/, "name = \"model_runner\"\nversion = \"" tag "\""); print; next}1' Cargo.lock > temp && mv temp Cargo.lock
 
-      - name: Install sqlx-cli
-        run: cargo install sqlx-cli --no-default-features --features sqlite
-
-      - run: |
-          chmod +x ~/.cargo/bin/sqlx
-          echo ~/.cargo/bin >> $GITHUB_PATH
-
-      - name: Setup sqlx
-        env:
-          DATABASE_URL: sqlite://model_runner_build.db
-        run: sqlx db setup
-
       - name: Compile and upload
         uses: rust-build/rust-build.action@v1.4.5
         env:
@@ -85,7 +73,7 @@ jobs:
       matrix:
         include:
           - flags: "" # No optimizations
-            suffix: "" # '-' must be appended manually
+            suffix: ""
           - flags: "-C target-feature=+avx,+avx2"
             suffix: "-avx"
           - flags: "-C target-feature=+f16c"
