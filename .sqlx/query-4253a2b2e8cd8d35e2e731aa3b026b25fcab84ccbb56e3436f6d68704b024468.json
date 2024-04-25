@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO client (id, name, key, permissions, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "4253a2b2e8cd8d35e2e731aa3b026b25fcab84ccbb56e3436f6d68704b024468"
+}
