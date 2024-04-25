@@ -25,6 +25,9 @@ metrics_generator:
     path: /var/tempo/generator/wal
   traces_storage:
     path: /var/tempo/generator/traces
+  processor:
+      service_graphs:
+      span_metrics:
 
 storage:
   trace:
@@ -33,6 +36,3 @@ storage:
       path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
-
-overrides: # todo
-  metrics_generator_processors: [ 'service-graphs', 'span-metrics','local-blocks' ]
