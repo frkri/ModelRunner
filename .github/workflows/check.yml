@@ -35,6 +35,8 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Check sqlx
+        env:
+          SQLX_OFFLINE: true
         run: cargo sqlx prepare --check
 
       - name: Clippy
