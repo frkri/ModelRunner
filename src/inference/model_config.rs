@@ -14,9 +14,9 @@ impl Default for GeneralModelConfig {
     fn default() -> Self {
         Self {
             seed: random(),
-            temperature: Some(0.8),
-            top_p: Some(0.9),
-            repeat_penalty: 0.7,
+            temperature: Some(0.6),
+            top_p: Some(0.6),
+            repeat_penalty: 1.1,
             repeat_context_size: 64,
         }
     }
