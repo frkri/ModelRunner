@@ -9,8 +9,10 @@ services:
     image: grafana/grafana-oss
     restart: unless-stopped
     user: '0'
-    ports:
-      - '3000:3000'
+    ports: # Can be removed if using Traefik
+      - 3000:3000
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch correlations traceQLStreaming metricsSummary traceqlEditor
     volumes:
       - '/var/lib/model-runner/grafana:/var/lib/grafana'
       - '../telemetry/config/grafana/grafana.ini:/etc/grafana/grafana.ini'
