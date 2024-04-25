@@ -58,7 +58,7 @@ use crate::inference::models::model::ModelBase;
 use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
 use crate::inference::models::openhermes::OpenHermesModel;
-use crate::inference::models::phi2::Phi2Model;
+use crate::inference::models::phi::PhiModel;
 use crate::inference::models::stablelm2::StableLm2Model;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
@@ -95,21 +95,41 @@ struct AppState {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
+    static ref PHI2_MODEL: PhiModel = PhiModel::new(
         &Api::new().expect("Failed to create API"),
         &ModelBase {
-            name: "Quantized Phi2".into(),
+            name: "Quantized Puffin Phi2".into(),
             license: "MIT".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "lmz/candle-quantized-phi".into(),
             repo_revision: "main".into(),
         },
+        "lmz/candle-quantized-phi",
         "tokenizer-puffin-phi-v2.json",
         "model-puffin-phi-v2-q80.gguf",
-        mixformer::Config::puffin_phi_v2(),
+        Some(mixformer::Config::puffin_phi_v2()),
         GeneralModelConfig::default(),
+        false,
     )
     .map_err(|e| error!("Failed to create Phi2 model: {}", e))
+    .unwrap();
+    static ref PHI3_MODEL: PhiModel = PhiModel::new(
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
+            name: "Quantized Phi3 Instruct".into(),
+            license: "MIT".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "microsoft/Phi-3-mini-4k-instruct-gguf".into(),
+            repo_revision: "main".into(),
+        },
+        "microsoft/Phi-3-mini-4k-instruct",
+        "tokenizer.json",
+        "Phi-3-mini-4k-instruct-q4.gguf",
+        None,
+        GeneralModelConfig::default(),
+        true,
+    )
+    .map_err(|e| error!("Failed to create Phi3 model: {}", e))
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
@@ -130,7 +150,7 @@ lazy_static! {
     static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
         &Api::new().expect("Failed to create API"),
         ModelBase {
-            name: "Quantized Mistral7B".into(),
+            name: "Quantized Mistral7B Instruct".into(),
             license: "Apache 2.0".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
             repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF".into(),
@@ -438,6 +458,7 @@ async fn handle_raw_request(
 ) -> ModelResult<(StatusCode, Json<RawResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_raw(req)?))),
+        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.clone().run_raw(req)?))),
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
@@ -458,6 +479,7 @@ async fn handle_instruct_request(
 ) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_instruct(req)?))),
+        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.clone().run_instruct(req)?))),
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_instruct(req)?),

@@ -10,11 +10,30 @@ authorization: Bearer {{api_key}}
   "model_config": {
     "temperature": 0.6,
     "seed": 12345,
-    "top_p": 0.8,
-    "repeat_penalty": 0.8,
+    "top_p": 0.2,
+    "repeat_penalty": 1.1,
     "repeat_context_size": 64
   }
 }
+
+### Phi 3
+POST http://{{host}}:{{port}}/text/raw
+content-type: application/json
+authorization: Bearer {{api_key}}
+
+{
+  "model": "phi3",
+  "input": "<|system|>You are a helpful meteorologist.\n<|end|>\n<|user|>\nGive me a detailed report about tomorrows sunny weather.<|end|>\n<|assistant|>\n",
+  "max_length": 150,
+  "model_config": {
+    "temperature": 0.6,
+    "seed": 12345,
+    "top_p": 0.6,
+    "repeat_penalty": 1.1,
+    "repeat_context_size": 64
+  }
+}
+
 
 ### Mistral 7B Instruct
 POST http://{{host}}:{{port}}/text/raw
