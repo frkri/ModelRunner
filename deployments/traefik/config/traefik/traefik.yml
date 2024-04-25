@@ -7,3 +7,19 @@ providers:
     exposedByDefault: false
     network: mesh
     watch: true
+
+# Tracing and metrics can be enabled here
+#tracing:
+#  otlp:
+#    grpc:
+#      endpoint: otel-collector:4317
+#      insecure: true
+
+#metrics:
+#  otlp:
+#    addEntryPointsLabels: true
+#    addRoutersLabels: true
+#    addServicesLabels: true
+#    grpc:
+#      endpoint: otel-collector:4317
+#      insecure: true
