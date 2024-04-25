@@ -38,18 +38,14 @@ jobs:
           chmod +x ~/.cargo/bin/sqlx
           echo ~/.cargo/bin >> $GITHUB_PATH
 
-      - name: Setup sqlx
-        env:
-          DATABASE_URL: sqlite://model_runner_check.db
-        run: sqlx db setup
-
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
       - name: Fmt
         run: cargo fmt --all -- --check
 
+      - name: Check sqlx
+        run: cargo sqlx prepare --check
+
       - name: Clippy
-        env:
-          DATABASE_URL: sqlite://model_runner_check.db
         run: cargo clippy --all-targets --all-features -- -D warnings
