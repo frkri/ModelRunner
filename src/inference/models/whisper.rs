@@ -8,22 +8,13 @@ use crate::inference::models::model::ModelBase;
 use crate::inference::task::transcribe::{TranscribeHandler, TranscribeResponse};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/whisper/main.rs
+#[derive(Clone)]
 pub struct WhisperModel {
-    api: Api,
     generator_pipeline: AudioGeneratorPipeline,
 }
 
-impl Clone for WhisperModel {
-    fn clone(&self) -> Self {
-        Self {
-            api: self.api.clone(),
-            generator_pipeline: self.generator_pipeline.clone(),
-        }
-    }
-}
-
 impl WhisperModel {
-    #[tracing::instrument(level = "debug", skip(api))]
+    #[tracing::instrument(level = "info", skip(api))]
     pub fn new(
         api: Api,
         base: &ModelBase,
@@ -47,15 +38,12 @@ impl WhisperModel {
             rand::rngs::StdRng::from_seed([0; 32]),
         )?;
 
-        Ok(Self {
-            api,
-            generator_pipeline,
-        })
+        Ok(Self { generator_pipeline })
     }
 }
 
 impl TranscribeHandler for WhisperModel {
-    #[tracing::instrument(level = "debug", skip(self, input))]
+    #[tracing::instrument(level = "info", skip(self, input))]
     fn run_transcribe(
         &mut self,
         input: Box<[u8]>,

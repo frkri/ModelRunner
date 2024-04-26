@@ -3,24 +3,12 @@ use anyhow::{bail, Result};
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/src/token_output_stream.rs
 /// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a
 /// streaming way rather than having to wait for the full decoding.
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TokenOutputStream {
     tokenizer: tokenizers::Tokenizer,
     tokens: Vec<u32>,
     prev_index: usize,
     current_index: usize,
-}
-
-impl Clone for TokenOutputStream {
-    fn clone(&self) -> Self {
-        Self {
-            tokenizer: self.tokenizer.clone(),
-            tokens: self.tokens.clone(),
-            prev_index: self.prev_index,
-            current_index: self.current_index,
-        }
-    }
 }
 
 impl TokenOutputStream {

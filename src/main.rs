@@ -41,7 +41,6 @@ use lazy_static::lazy_static;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use tower_http::trace::TraceLayer;
-use tracing::debug;
 use tracing::instrument;
 use tracing::{error, info, warn};
 
@@ -377,7 +376,6 @@ async fn auth_middleware(
     request.extensions_mut().insert(client);
 
     info!(monotonic_counter.requests_authorized = 1);
-    debug!(target: "authorization", ?id, "Client authorized");
     Ok(next.run(request).await)
 }
 

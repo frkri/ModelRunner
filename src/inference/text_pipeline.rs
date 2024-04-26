@@ -45,6 +45,7 @@ pub enum ModelConfig {
 }
 
 impl Debug for TextGeneratorPipeline {
+    #[tracing::instrument(level = "trace", skip(self, f))]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TextGeneratorPipeline")
             .field("model", &self.model)
@@ -61,6 +62,7 @@ impl Debug for TextGeneratorPipeline {
 }
 
 impl Clone for TextGeneratorPipeline {
+    #[tracing::instrument(level = "trace", skip(self))]
     fn clone(&self) -> Self {
         Self {
             model: self.model.clone(),

@@ -17,12 +17,14 @@ pub struct HttpErrorResponse {
 }
 
 impl From<String> for HttpErrorResponse {
+    #[tracing::instrument(level = "trace")]
     fn from(message: String) -> Self {
         Self { error: message }
     }
 }
 
 impl From<&str> for HttpErrorResponse {
+    #[tracing::instrument(level = "trace")]
     fn from(message: &str) -> Self {
         Self {
             error: message.to_string(),
@@ -31,12 +33,14 @@ impl From<&str> for HttpErrorResponse {
 }
 
 impl Display for ModelRunnerError {
+    #[tracing::instrument(level = "trace", skip(f))]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message.error)
     }
 }
 
 impl IntoResponse for ModelRunnerError {
+    #[tracing::instrument(level = "trace")]
     fn into_response(self) -> Response {
         let mut res = Json(self.message).into_response();
         *res.status_mut() = self.status;
@@ -48,6 +52,7 @@ impl<E> From<E> for ModelRunnerError
 where
     E: Into<anyhow::Error>,
 {
+    #[tracing::instrument(level = "trace", skip(err))]
     fn from(err: E) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,

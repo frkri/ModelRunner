@@ -13,7 +13,7 @@ use sqlx::SqlitePool;
 use crate::api::auth::{Auth, AuthToken};
 
 #[allow(dead_code)]
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct ApiClient {
     pub name: Option<String>,
     pub token: AuthToken,
@@ -28,13 +28,13 @@ pub(crate) struct ApiClientStatusRequest {
     pub(crate) id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientCreateRequest {
     pub(crate) name: String,
     pub(crate) permissions: Vec<Permission>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct ApiClientDeleteRequest {
     pub(crate) id: String,
 }
@@ -67,18 +67,21 @@ bitflags! {
 impl FromStr for Permission {
     type Err = anyhow::Error;
 
+    #[tracing::instrument(level = "trace")]
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Self::from_name(s).ok_or_else(|| anyhow!("Invalid permission"))
     }
 }
 
 impl Display for Permission {
+    #[tracing::instrument(level = "trace", skip(f))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         bitflags::parser::to_writer(self, f)
     }
 }
 
 impl Display for ApiClient {
+    #[tracing::instrument(level = "trace", skip(self, f))]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -94,6 +97,7 @@ impl Display for ApiClient {
 }
 
 impl ApiClient {
+    #[tracing::instrument(level = "info", skip(auth, pool))]
     pub async fn new(
         auth: &Auth,
         name: &str,
@@ -137,6 +141,7 @@ impl ApiClient {
         })
     }
 
+    #[tracing::instrument(level = "info", skip(pool))]
     pub(crate) async fn with_id(id: &str, pool: &SqlitePool) -> Result<Self> {
         let client_record = sqlx::query!(
             "SELECT id, name, key, permissions, created_at, updated_at, created_by FROM client WHERE id = ?",
@@ -158,6 +163,7 @@ impl ApiClient {
         })
     }
 
+    #[tracing::instrument(level = "info", skip(auth, token, pool))]
     pub(crate) async fn with_token(
         auth: &Auth,
         token: AuthToken,
@@ -189,6 +195,7 @@ impl ApiClient {
 
         Ok(client)
     }
+    #[tracing::instrument(level = "info", skip(self))]
     pub(crate) fn has_permission(&self, permission: &Permission) -> Result<()> {
         if !self.permissions.contains(permission.to_owned()) {
             bail!(
@@ -199,6 +206,7 @@ impl ApiClient {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info", skip(self, pool))]
     pub(crate) async fn delete(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query!("DELETE FROM client WHERE id = ?", self.token.id)
             .execute(pool)
@@ -206,6 +214,7 @@ impl ApiClient {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info", skip(self, pool))]
     pub(crate) async fn update(
         &self,
         name: &String,
