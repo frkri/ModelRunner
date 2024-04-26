@@ -15,7 +15,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
 #[tracing::instrument(level = "info")]
-pub(crate) fn init_telemetry(
+pub fn init_telemetry(
     endpoint: &Option<String>,
     console: bool,
     tracing_chrome: bool,
@@ -28,7 +28,7 @@ pub(crate) fn init_telemetry(
     // Builds the initial layer
     let mut guards = vec![];
     let mut layer = EnvFilter::try_from_default_env()
-        .unwrap_or(EnvFilter::new("INFO"))
+        .unwrap_or_else(|_| EnvFilter::new("INFO"))
         .boxed();
 
     // Additions to the layer

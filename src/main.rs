@@ -381,20 +381,18 @@ async fn auth_middleware(
 
 #[tracing::instrument(level = "trace", skip(request))]
 fn get_scheme(request: &Request) -> String {
-    if let Some(scheme) = request.uri().scheme_str() {
-        scheme.to_string()
-    } else {
-        "http".to_string()
-    }
+    request
+        .uri()
+        .scheme_str()
+        .map_or_else(|| "http".to_string(), ToString::to_string)
 }
 
 #[tracing::instrument(level = "trace", skip(request))]
 fn get_path(request: &Request) -> String {
-    if let Some(matched_path) = request.extensions().get::<MatchedPath>() {
-        matched_path.as_str().to_string()
-    } else {
-        request.uri().path().to_string()
-    }
+    request.extensions().get::<MatchedPath>().map_or_else(
+        || request.uri().path().to_string(),
+        |matched_path| matched_path.as_str().to_string(),
+    )
 }
 
 #[instrument(skip_all)]
