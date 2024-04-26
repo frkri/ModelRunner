@@ -7,7 +7,7 @@ use candle_core::{DType, Device, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 use candle_transformers::models::mixformer;
 use candle_transformers::models::quantized_llama::ModelWeights;
-use candle_transformers::models::quantized_mixformer::MixFormerSequentialForCausalLM as Phi2;
+use candle_transformers::models::quantized_mixformer::MixFormerSequentialForCausalLM;
 use candle_transformers::models::quantized_stable_lm::Model as QStableLM;
 use candle_transformers::models::stable_lm::Config as StableLmConfig;
 use candle_transformers::quantized_var_builder::VarBuilder;
@@ -17,11 +17,7 @@ use tokenizers::Tokenizer;
 
 use crate::inference::token_output_stream::TokenOutputStream;
 
-// Taken from
-// https://github.com/huggingface/candle/blob/main/candle-examples/examples/phi/main.rs
-// https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
-// https://github.com/huggingface/candle/blob/main/candle-examples/examples/quantized/main.rs
-// https://github.com/huggingface/candle/tree/main/candle-examples/examples/stable-lm
+// Taken from https://github.com/huggingface/candle/blob/main/candle-examples
 pub struct TextGeneratorPipeline {
     pub model: Model,
     pub device: Device,
@@ -36,14 +32,15 @@ pub struct TextGeneratorPipeline {
 
 #[derive(Clone, Debug)]
 pub enum Model {
-    Phi(Option<Phi2>),
+    Phi2(Option<MixFormerSequentialForCausalLM>),
+    Phi3(Option<ModelWeights>),
     Mistral(Option<ModelWeights>),
     OpenHermes(Option<ModelWeights>),
     StableLm(Option<QStableLM>),
 }
 #[derive(Debug)]
 pub enum ModelConfig {
-    Phi(mixformer::Config),
+    Phi2(mixformer::Config),
     StableLm(StableLmConfig),
 }
 
@@ -64,13 +61,13 @@ impl Debug for TextGeneratorPipeline {
 }
 
 impl Clone for TextGeneratorPipeline {
-    fn clone(&self) -> TextGeneratorPipeline {
-        TextGeneratorPipeline {
+    fn clone(&self) -> Self {
+        Self {
             model: self.model.clone(),
             device: self.device.clone(),
             tokenizer: self.tokenizer.clone(),
             logits_processor: LogitsProcessor::new(
-                self.seed.unwrap_or(random()),
+                self.seed.unwrap_or_else(random),
                 self.temperature,
                 self.top_p,
             ),
@@ -97,19 +94,19 @@ impl TextGeneratorPipeline {
         top_p: Option<f64>,
         repeat_penalty: f32,
         repeat_context_size: usize,
-    ) -> Result<TextGeneratorPipeline> {
+    ) -> Result<Self> {
         let tokenizer_file = repo.get(tokenizer_filename)?;
         let gguf_file = repo.get(gguf_filename)?;
 
         let device = Device::Cpu;
         let vb = VarBuilder::from_gguf(gguf_file, &device)?;
         let model = match model {
-            Model::Phi(_) => {
-                let ModelConfig::Phi(config) = config else {
+            Model::Phi2(_) => {
+                let ModelConfig::Phi2(config) = config else {
                     bail!("Invalid model config")
                 };
-                let model = Phi2::new(&config, vb)?;
-                Model::Phi(Some(model))
+                let model = MixFormerSequentialForCausalLM::new(&config, vb)?;
+                Model::Phi2(Some(model))
             }
             Model::StableLm(_) => {
                 let ModelConfig::StableLm(config) = config else {
@@ -122,11 +119,11 @@ impl TextGeneratorPipeline {
         };
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
-        let pipeline = TextGeneratorPipeline {
+        let pipeline = Self {
             model,
             device,
             tokenizer,
-            logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
+            logits_processor: LogitsProcessor::new(seed.unwrap_or_else(random), temperature, top_p),
             repeat_penalty,
             repeat_context_size,
             seed,
@@ -149,7 +146,7 @@ impl TextGeneratorPipeline {
         top_p: Option<f64>,
         repeat_penalty: f32,
         repeat_context_size: usize,
-    ) -> Result<TextGeneratorPipeline> {
+    ) -> Result<Self> {
         let gguf_file = repo.get(gguf_filename)?;
         let mut file = std::fs::File::open(&gguf_file)?;
 
@@ -159,15 +156,16 @@ impl TextGeneratorPipeline {
         let model_weights = Some(ModelWeights::from_gguf(model_reader, &mut file, &device)?);
         let tokenizer = TokenOutputStream::new(Tokenizer::from_file(tokenizer_file).unwrap());
 
-        let pipeline = TextGeneratorPipeline {
+        let pipeline = Self {
             model: match model {
+                Model::Phi3(_) => Model::Phi3(model_weights),
                 Model::Mistral(_) => Model::Mistral(model_weights),
                 Model::OpenHermes(_) => Model::OpenHermes(model_weights),
                 _ => bail!("Unsupported model"),
             },
             device: Device::Cpu,
             tokenizer,
-            logits_processor: LogitsProcessor::new(seed.unwrap_or(random()), temperature, top_p),
+            logits_processor: LogitsProcessor::new(seed.unwrap_or_else(random), temperature, top_p),
             repeat_penalty,
             repeat_context_size,
             seed,
@@ -179,7 +177,7 @@ impl TextGeneratorPipeline {
     }
     #[tracing::instrument(level = "info", skip(prompt))]
     pub fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64)> {
-        if let Model::Phi(Some(ref mut m)) = self.model {
+        if let Model::Phi2(Some(ref mut m)) = self.model {
             m.clear_kv_cache();
         }
         self.tokenizer.clear();
@@ -200,6 +198,10 @@ impl TextGeneratorPipeline {
                 None => bail!("Cannot find </s> token"),
             },
             Model::OpenHermes(_) => 32000,
+            Model::Phi3(_) => match self.tokenizer.tokenizer().get_vocab(true).get("<|end|>") {
+                Some(token) => *token,
+                None => bail!("Cannot find <|end|> token"),
+            },
             _ => match self
                 .tokenizer
                 .tokenizer()
@@ -218,14 +220,16 @@ impl TextGeneratorPipeline {
             let start_pos = tokens.len().saturating_sub(context_size);
             let input = Tensor::new(&tokens[start_pos..], &self.device)?.unsqueeze(0)?;
             let logits = match &mut self.model {
-                Model::Phi(Some(model)) => model.forward(&input)?,
+                Model::Phi2(Some(model)) => model.forward(&input)?,
+                Model::Phi3(Some(model)) => model.forward(&input, start_pos)?,
                 Model::Mistral(Some(model)) => model.forward(&input, start_pos)?,
                 Model::OpenHermes(Some(model)) => model.forward(&input, start_pos)?,
                 Model::StableLm(Some(model)) => model.forward(&input, start_pos)?,
                 _ => bail!("Model not initialized"),
             };
             let logits = match self.model {
-                Model::Phi(_) => logits.squeeze(0)?.to_dtype(DType::F32)?,
+                Model::Phi2(_) => logits.squeeze(0)?.to_dtype(DType::F32)?,
+                Model::Phi3(_) => logits.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::Mistral(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::OpenHermes(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,
                 Model::StableLm(_) => logits.squeeze(0)?.squeeze(0)?.to_dtype(DType::F32)?,

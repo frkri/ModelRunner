@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, name, key, permissions, created_at, updated_at, created_by FROM client WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "key",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "permissions",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "created_by",
+        "ordinal": 6,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5f242c04854f136300ead429f875ff3a07a8b23e8888c5d7011b2955161402f1"
+}

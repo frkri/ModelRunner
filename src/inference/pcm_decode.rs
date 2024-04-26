@@ -18,7 +18,7 @@ where
 }
 
 #[tracing::instrument(level = "trace", skip(cursor))]
-pub(crate) fn pcm_decode(cursor: Cursor<Box<[u8]>>) -> anyhow::Result<(Vec<f32>, u32)> {
+pub fn pcm_decode(cursor: Cursor<Box<[u8]>>) -> anyhow::Result<(Vec<f32>, u32)> {
     // Create the media source stream.
     let mss = MediaSourceStream::new(Box::new(cursor), MediaSourceStreamOptions::default());
 

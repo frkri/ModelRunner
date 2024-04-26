@@ -15,7 +15,7 @@ pub struct WhisperModel {
 
 impl Clone for WhisperModel {
     fn clone(&self) -> Self {
-        WhisperModel {
+        Self {
             api: self.api.clone(),
             generator_pipeline: self.generator_pipeline.clone(),
         }
