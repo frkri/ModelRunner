@@ -53,19 +53,6 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.scope=modelrunner"
 
-  # Stores logs
-  loki: # todo
-    container_name: loki
-    image: grafana/loki
-    restart: unless-stopped
-    volumes:
-      - ../telemetry/config/loki/loki.yaml:/etc/loki/local-config.yaml
-      - /var/lib/model-runner/loki:/loki
-    networks:
-      - mesh
-    labels:
-      - "com.centurylinklabs.watchtower.scope=modelrunner"
-
   # Stores traces
   tempo:
     container_name: tempo

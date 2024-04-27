@@ -1,6 +1,6 @@
 # Telemetry
 
-Includes Grafana, Tempo, Loki and Prometheus
+Includes Grafana, Tempo and Prometheus
 
 - Grafana is setup with dashboards and datasources out of the box
 - Traefik can be setup to export metric and traces
@@ -13,5 +13,4 @@ Includes Grafana, Tempo, Loki and Prometheus
     
     Otel-Collector<-->Tempo<-->Grafana;
     Otel-Collector<-->Prometheus<-->Grafana;
-    Otel-Collector<-->Loki<-->Grafana;
 ```

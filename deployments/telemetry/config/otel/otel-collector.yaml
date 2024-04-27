@@ -14,10 +14,6 @@ receivers:
           scrape_interval: 15s
           static_configs:
             - targets: ["prometheus:9090"]
-        - job_name: "loki"
-          scrape_interval: 15s
-          static_configs:
-            - targets: ["loki:3100"]
         - job_name: "tempo"
           scrape_interval: 15s
           static_configs:
@@ -31,9 +27,6 @@ exporters:
     endpoint: "http://prometheus:9090"
     metrics_endpoint: "http://prometheus:9090/api/v1/otlp/v1/metrics"
 
-  loki/logs:
-    endpoint: "http://loki:3100/loki/api/v1/push"
-
   otlp/traces:
     endpoint: "tempo:4317"
     tls:
@@ -45,10 +38,6 @@ exporters:
 
 service:
   pipelines:
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [loki/logs]
     metrics:
       receivers:
         - otlp
