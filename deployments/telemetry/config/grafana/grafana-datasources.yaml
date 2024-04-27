@@ -10,15 +10,6 @@ datasources:
     version: 1
     editable: false
 
-  - name: Loki
-    type: loki
-    access: proxy
-    uid: loki
-    orgId: 1
-    url: http://loki:3100
-    version: 1
-    editable: false
-
   - name: Tempo
     type: tempo
     access: proxy
