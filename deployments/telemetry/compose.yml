@@ -6,7 +6,7 @@ services:
   # Visualizes the telemetry data
   grafana:
     container_name: grafana
-    image: grafana/grafana-oss
+    image: grafana/grafana-oss:10.4.2
     restart: unless-stopped
     user: '0'
     ports: # Can be removed if using Traefik
@@ -30,7 +30,7 @@ services:
   # Collects telemetry data
   otel-collector:
     container_name: otel-collector
-    image: otel/opentelemetry-collector-contrib
+    image: otel/opentelemetry-collector-contrib:0.99.0
     restart: unless-stopped
     volumes:
       - ../telemetry/config/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
@@ -42,7 +42,7 @@ services:
   # Stores metrics
   prometheus:
     container_name: prometheus
-    image: prom/prometheus
+    image: prom/prometheus:v2.51.2
     restart: unless-stopped
     command:
       - "--enable-feature=otlp-write-receiver" # Native OpenTelemetry HTTP receiver
@@ -56,7 +56,7 @@ services:
   # Stores traces
   tempo:
     container_name: tempo
-    image: grafana/tempo
+    image: grafana/tempo:2.4.1
     user: '0'
     restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]
