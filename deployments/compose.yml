@@ -40,8 +40,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.modelrunner.entrypoints=web"
       - "traefik.http.routers.modelrunner.rule=Host(`modelrunner.localhost`) || PathPrefix(`/modelrunner`)"
-      - "traefik.http.middlewares.modelrunner_striprefix.stripprefix.prefixes=/api"
-      - "traefik.http.routers.modelrunner.middlewares=modelrunner_striprefix@docker"
     # configs:
     #  - source: model_runner_config
     #    target: /ModelRunner/ModelRunner.toml
@@ -52,7 +50,7 @@ services:
 # Use the following to mount the config file rather than using environment variables. See https://docs.docker.com/compose/compose-file/08-configs/
 configs:
   model_runner_config:
-    file: ../ModelRunner.toml.example
+    file: ./path/to/your/config.toml
 
 secrets:
   cert-file:
