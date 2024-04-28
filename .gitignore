@@ -3,3 +3,5 @@
 
 ModelRunner.toml
 model_runner.db*
+
+http-client.env.json
