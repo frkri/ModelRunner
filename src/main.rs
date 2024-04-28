@@ -1,25 +1,35 @@
-#![warn(clippy::correctness)]
-#![warn(clippy::complexity)]
-#![warn(clippy::suspicious)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::cargo)]
-#![warn(clippy::perf)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::multiple_crate_versions)]
-#![allow(clippy::cargo_common_metadata)]
+#![warn(
+    clippy::correctness,
+    clippy::complexity,
+    clippy::suspicious,
+    clippy::pedantic,
+    clippy::cargo,
+    clippy::perf,
+    clippy::style,
+    clippy::nursery
+)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::multiple_crate_versions,
+    clippy::cargo_common_metadata
+)]
 
 use std::net::SocketAddr;
 use std::option::Option;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
-use axum::{middleware, Json, Router};
+use axum::{middleware, Extension, Json, Router};
+use axum_extra::headers::authorization::Bearer;
+use axum_extra::headers::Authorization;
+use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use candle_transformers::models::mixformer;
@@ -32,17 +42,15 @@ use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 
-use crate::api::api_client::{
-    ApiClient, ApiClientCreateRequest, ApiClientCreateResponse, ApiClientDeleteRequest, Permission,
-};
-use crate::api::api_client::{ApiClientStatusRequest, ApiClientUpdateRequest};
-use crate::api::auth::extract_auth_header;
-use crate::api::auth::extract_id_key;
-use crate::api::auth::Auth;
+#[cfg(unix)]
+use tikv_jemallocator::Jemalloc;
+
+use crate::api::auth::{Auth, AuthToken};
+use crate::api::client::{ApiClient, ApiClientCreateRequest, ApiClientDeleteRequest, Permission};
+use crate::api::client::{ApiClientStatusRequest, ApiClientUpdateRequest};
 use crate::config::Config;
 use crate::error::ModelRunnerError;
 use crate::error::{HttpErrorResponse, ModelResult};
-use crate::extractors::ApiClientExtractor;
 use crate::inference::model_config::GeneralModelConfig;
 use crate::inference::models::mistral7b::Mistral7BModel;
 use crate::inference::models::model::AudioTask;
@@ -50,7 +58,7 @@ use crate::inference::models::model::ModelBase;
 use crate::inference::models::model::ModelDomain;
 use crate::inference::models::model::TextTask;
 use crate::inference::models::openhermes::OpenHermesModel;
-use crate::inference::models::phi2::Phi2Model;
+use crate::inference::models::phi::PhiModel;
 use crate::inference::models::stablelm2::StableLm2Model;
 use crate::inference::models::whisper::WhisperModel;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
@@ -59,10 +67,13 @@ use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
 
+#[cfg(unix)]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 pub mod api;
 mod config;
 pub mod error;
-mod extractors;
 mod inference;
 
 #[derive(Parser)]
@@ -84,21 +95,41 @@ struct AppState {
 }
 
 lazy_static! {
-    static ref PHI2_MODEL: Phi2Model = Phi2Model::new(
+    static ref PHI2_MODEL: PhiModel = PhiModel::new(
         &Api::new().expect("Failed to create API"),
         &ModelBase {
-            name: "Quantized Phi2".into(),
+            name: "Quantized Puffin Phi2".into(),
             license: "MIT".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "lmz/candle-quantized-phi".into(),
             repo_revision: "main".into(),
         },
+        "lmz/candle-quantized-phi",
         "tokenizer-puffin-phi-v2.json",
         "model-puffin-phi-v2-q80.gguf",
-        mixformer::Config::puffin_phi_v2(),
+        Some(mixformer::Config::puffin_phi_v2()),
         GeneralModelConfig::default(),
+        false,
     )
     .map_err(|e| error!("Failed to create Phi2 model: {}", e))
+    .unwrap();
+    static ref PHI3_MODEL: PhiModel = PhiModel::new(
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
+            name: "Quantized Phi3 Instruct".into(),
+            license: "MIT".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "microsoft/Phi-3-mini-4k-instruct-gguf".into(),
+            repo_revision: "main".into(),
+        },
+        "microsoft/Phi-3-mini-4k-instruct",
+        "tokenizer.json",
+        "Phi-3-mini-4k-instruct-q4.gguf",
+        None,
+        GeneralModelConfig::default(),
+        true,
+    )
+    .map_err(|e| error!("Failed to create Phi3 model: {}", e))
     .unwrap();
     static ref WHISPER_MODEL: WhisperModel = WhisperModel::new(
         Api::new().expect("Failed to create API"),
@@ -119,7 +150,7 @@ lazy_static! {
     static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
         &Api::new().expect("Failed to create API"),
         ModelBase {
-            name: "Quantized Mistral7B".into(),
+            name: "Quantized Mistral7B Instruct".into(),
             license: "Apache 2.0".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
             repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF".into(),
@@ -146,7 +177,7 @@ lazy_static! {
     )
     .map_err(|e| error!("Failed to create OpenHermes model: {}", e))
     .unwrap();
-    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+    static ref STABLELM2_ZEPHYR_MODEL: StableLm2Model = StableLm2Model::new(
         &Api::new().expect("Failed to create API"),
         &ModelBase {
             name: "Quantized StableLM 2 Zephyr 1.6B".into(),
@@ -158,6 +189,23 @@ lazy_static! {
         "tokenizer-gpt4.json",
         "stablelm-2-zephyr-1_6b-q4k.gguf",
         &GeneralModelConfig::default(),
+        true,
+    )
+    .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
+    .unwrap();
+    static ref STABLELM2_MODEL: StableLm2Model = StableLm2Model::new(
+        &Api::new().expect("Failed to create API"),
+        &ModelBase {
+            name: "Quantized StableLM 2 1.6B".into(),
+            license: "StabilityAI Non-Commercial Research Community License".into(),
+            domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
+            repo_id: "lmz/candle-stablelm".into(),
+            repo_revision: "main".into(),
+        },
+        "tokenizer-gpt4.json",
+        "stablelm-2-1_6b-q4k.gguf",
+        &GeneralModelConfig::default(),
+        false,
     )
     .map_err(|e| error!("Failed to create StableLM2 model: {}", e))
     .unwrap();
@@ -270,6 +318,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::redundant_pub_crate)]
 async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
@@ -299,21 +348,20 @@ async fn shutdown_handler(handle: Handle) {
 
 async fn auth_middleware(
     State(state): State<AppState>,
-    request: Request,
+    TypedHeader(auth_header): TypedHeader<Authorization<Bearer>>,
+    mut request: Request,
     next: Next,
 ) -> ModelResult<Response> {
-    let header_value = extract_auth_header(request.headers())?;
-    if !state
-        .auth
-        .check_api_key(header_value, &state.db_pool)
-        .await?
-    {
-        bail_runner!(StatusCode::UNAUTHORIZED, "Invalid API key")
-    }
+    let client = ApiClient::with_token(
+        &state.auth,
+        AuthToken::from_raw_str(auth_header.token())?,
+        &state.db_pool,
+    )
+    .await
+    .map_err(|_| runner!(StatusCode::UNAUTHORIZED, "Failed to authenticate client"))?;
+    client.has_permission(&Permission::USE_SELF)?;
 
-    let (id, _) = extract_id_key(header_value)?;
-    let client = ApiClient::from(id, &state.db_pool).await?;
-    client.has_permission(Permission::Use)?;
+    request.extensions_mut().insert(client);
     Ok(next.run(request).await)
 }
 
@@ -325,49 +373,53 @@ async fn handle_health_request() -> ModelResult<StatusCode> {
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     req: Option<Json<ApiClientStatusRequest>>,
 ) -> ModelResult<(StatusCode, Json<ApiClient>)> {
-    match req {
-        Some(req) => {
-            client.has_permission(Permission::Status)?;
-            let target = ApiClient::from(req.id.as_str(), &state.db_pool)
-                .await
-                .map_err(|_| anyhow!("Failed to find any client matching ID"))?;
-            Ok((StatusCode::OK, Json(target)))
-        }
-        _ => Ok((StatusCode::OK, Json(client))),
+    if let Some(req) = req {
+        client.has_permission(&Permission::STATUS_OTHER)?;
+        client = ApiClient::with_id(req.id.as_str(), &state.db_pool)
+            .await
+            .map_err(|_| {
+                runner!(
+                    StatusCode::NOT_FOUND,
+                    "Failed to find any client matching ID"
+                )
+            })?;
+    } else {
+        client.has_permission(&Permission::STATUS_SELF)?;
     }
+
+    Ok((StatusCode::OK, Json(client)))
 }
 
 #[axum_macros::debug_handler]
 async fn handle_create_request(
     State(state): State<AppState>,
-    ApiClientExtractor(client): ApiClientExtractor,
+    Extension(client): Extension<ApiClient>,
     Json(req): Json<ApiClientCreateRequest>,
-) -> ModelResult<(StatusCode, Json<ApiClientCreateResponse>)> {
-    client.has_permission(Permission::Create)?;
-    let key = state
-        .auth
-        .create_api_key(
-            &req.name,
-            &req.permissions,
-            &Some(client.id),
-            &state.db_pool,
-        )
-        .await?;
-    Ok((StatusCode::OK, Json(ApiClientCreateResponse { key })))
+) -> ModelResult<(StatusCode, Json<ApiClient>)> {
+    client.has_permission(&Permission::CREATE_SELF)?;
+    let client = ApiClient::new(
+        &state.auth,
+        &req.name,
+        &req.permissions.iter().cloned().collect::<Permission>(),
+        &Some(client.token.id),
+        &state.db_pool,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(client)))
 }
 
 #[axum_macros::debug_handler]
 async fn handle_delete_request(
     State(state): State<AppState>,
-    ApiClientExtractor(mut client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     Json(req): Json<ApiClientDeleteRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::Delete)?;
-    if req.id != client.id {
-        client = ApiClient::from(req.id.as_str(), &state.db_pool).await?;
+    client.has_permission(&Permission::DELETE_SELF)?;
+    if req.id != client.token.id {
+        client = ApiClient::with_id(req.id.as_str(), &state.db_pool).await?;
     }
     client.delete(&state.db_pool).await?;
     Ok(StatusCode::OK)
@@ -376,19 +428,27 @@ async fn handle_delete_request(
 #[axum_macros::debug_handler]
 async fn handle_update_request(
     State(state): State<AppState>,
-    ApiClientExtractor(mut client): ApiClientExtractor,
+    Extension(mut client): Extension<ApiClient>,
     req: Json<ApiClientUpdateRequest>,
 ) -> ModelResult<StatusCode> {
-    client.has_permission(Permission::Update)?;
     if let Some(id) = &req.id {
-        if id != &client.id {
-            client = ApiClient::from(id.as_str(), &state.db_pool).await?;
+        if id != &client.token.id {
+            client.has_permission(&Permission::UPDATE_OTHER)?;
+            client = ApiClient::with_id(id.as_str(), &state.db_pool)
+                .await
+                .map_err(|_| runner!(StatusCode::NOT_FOUND, "Failed to find client by ID"))?;
         }
+    } else {
+        client.has_permission(&Permission::UPDATE_SELF)?;
     }
-    client
-        .update(&req.name, &req.permissions, &state.db_pool)
-        .await?;
 
+    client
+        .update(
+            &req.name,
+            &req.permissions.iter().cloned().collect::<Permission>(),
+            &state.db_pool,
+        )
+        .await?;
     Ok(StatusCode::OK)
 }
 
@@ -398,11 +458,16 @@ async fn handle_raw_request(
 ) -> ModelResult<(StatusCode, Json<RawResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_raw(req)?))),
+        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.clone().run_raw(req)?))),
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_raw(req)?),
         )),
         "openhermes" => Ok((StatusCode::OK, Json(OPENHERMES_MODEL.clone().run_raw(req)?))),
+        "stablelm2zephyr" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_ZEPHYR_MODEL.clone().run_raw(req)?),
+        )),
         "stablelm2" => Ok((StatusCode::OK, Json(STABLELM2_MODEL.clone().run_raw(req)?))),
         _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
     }
@@ -414,6 +479,7 @@ async fn handle_instruct_request(
 ) -> ModelResult<(StatusCode, Json<InstructResponse>)> {
     match req.model.as_str() {
         "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.clone().run_instruct(req)?))),
+        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.clone().run_instruct(req)?))),
         "mistral7b" => Ok((
             StatusCode::OK,
             Json(MISTRAL7B_INSTRUCT_MODEL.clone().run_instruct(req)?),
@@ -421,6 +487,10 @@ async fn handle_instruct_request(
         "openhermes" => Ok((
             StatusCode::OK,
             Json(OPENHERMES_MODEL.clone().run_instruct(req)?),
+        )),
+        "stablelm2zephyr" => Ok((
+            StatusCode::OK,
+            Json(STABLELM2_ZEPHYR_MODEL.clone().run_instruct(req)?),
         )),
         "stablelm2" => Ok((
             StatusCode::OK,
