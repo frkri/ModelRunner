@@ -3,4 +3,5 @@
 
 ModelRunner.toml
 model_runner.db*
-trace-*.json
+
+http-client.env.json
