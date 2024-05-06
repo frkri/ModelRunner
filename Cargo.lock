@@ -442,21 +442,6 @@ dependencies = [
 
 [[package]]
 name = "candle-nn"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66a27533c8edfc915a6459f9850641ef523a829fa1a181c670766c1f752d873a"
-dependencies = [
- "candle-core 0.4.1",
- "half",
- "num-traits",
- "rayon",
- "safetensors",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "candle-nn"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d439382fc4a8c4e080e29b39c94f8d7d5101e22096aba415a47c7e77b0229cd"
@@ -478,7 +463,7 @@ checksum = "c32601526f2b28bd9141a63c81b4bf4fd8b3d9b087604fe6dec1e8326b7bf2d4"
 dependencies = [
  "byteorder",
  "candle-core 0.5.0",
- "candle-nn 0.5.0",
+ "candle-nn",
  "fancy-regex",
  "num-traits",
  "rand",
@@ -1725,7 +1710,7 @@ dependencies = [
  "bitflags 2.5.0",
  "byteorder",
  "candle-core 0.4.1",
- "candle-nn 0.4.1",
+ "candle-nn",
  "candle-transformers",
  "clap",
  "clap-serde-derive",
