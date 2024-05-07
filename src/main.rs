@@ -403,9 +403,7 @@ async fn track_request(req: Request, next: Next) -> ModelResult<Response> {
     let version = req.version();
     let scheme = get_scheme(&req);
 
-    info!(counter.http.server.active_requests = 1, ?method);
     let response = next.run(req).await;
-    info!(counter.http.server.active_requests = -1, ?method);
     info!(
         histogram.http.server.request.duration = start.elapsed().as_secs_f64(),
         ?method,
