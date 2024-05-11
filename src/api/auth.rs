@@ -10,12 +10,13 @@ use password_hash::{PasswordHashString, PasswordHasher, SaltString};
 use rand::RngCore;
 use serde::Serialize;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Auth {
     pub(crate) argon: Argon2<'static>,
 }
 
 impl Default for Auth {
+    #[tracing::instrument(level = "trace")]
     fn default() -> Self {
         let argon = Argon2::default();
         Self { argon }
@@ -24,8 +25,8 @@ impl Default for Auth {
 
 const AUTH_TOKEN_SEPARATOR: &str = "_";
 
-#[derive(Serialize, Clone)]
 /// `AuthToken` is a struct that holds the id and a hashed key of a token. It also provides the display format of the token which is delimited by `AUTH_TOKEN_SEPARATOR`.
+#[derive(Serialize, Clone, Debug)]
 pub struct AuthToken {
     pub id: String,
     #[serde(skip)]
@@ -35,6 +36,7 @@ pub struct AuthToken {
 }
 
 impl AuthToken {
+    #[tracing::instrument(level = "info", skip(argon, salt))]
     pub(crate) fn new(argon: &Argon2, salt: &SaltString) -> Result<Self> {
         let mut key = [0u8; 64];
         OsRng.fill_bytes(&mut key);
@@ -60,6 +62,7 @@ impl AuthToken {
         })
     }
 
+    #[tracing::instrument(level = "info", skip(hash))]
     pub(crate) fn from(id: String, hash: impl Into<PasswordHashString>) -> Self {
         let hash = hash.into();
         Self {
@@ -69,6 +72,7 @@ impl AuthToken {
         }
     }
 
+    #[tracing::instrument(level = "info", skip(token))]
     pub(crate) fn from_raw_str(token: &str) -> Result<Self> {
         let parts: Vec<&str> = token.split(AUTH_TOKEN_SEPARATOR).collect();
         if parts.len() != 2 {
@@ -83,6 +87,7 @@ impl AuthToken {
 }
 
 impl Display for AuthToken {
+    #[tracing::instrument(level = "trace", skip(self, f))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

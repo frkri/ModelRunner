@@ -18,6 +18,7 @@ pub struct PhiModel {
 }
 
 impl PhiModel {
+    #[tracing::instrument(level = "info", skip(api))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         api: &Api,
@@ -81,6 +82,7 @@ impl PhiModel {
 }
 
 impl RawHandler for PhiModel {
+    #[tracing::instrument(level = "info", skip(self, request))]
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -102,6 +104,7 @@ impl RawHandler for PhiModel {
 }
 
 impl InstructHandler for PhiModel {
+    #[tracing::instrument(level = "info", skip(self, request))]
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
         let prompt = if self.alt_prompt {
             format!("<|user|>\n{}<|end|>\n<|assistant|>\n", request.input)

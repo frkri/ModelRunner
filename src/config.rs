@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::ArgAction;
 use clap_serde_derive::ClapSerde;
 use serde::Deserialize;
 
@@ -11,6 +12,19 @@ pub struct Config {
     /// The port the listener binds to
     #[arg(short, long, env, default_value = "25566")]
     pub port: u16,
+
+    /// The OpenTelemetry collector endpoint, enables telemetry
+    #[arg(short, long, env)]
+    pub otel_endpoint: Option<String>,
+
+    /// Should the console output always be enabled even if the logs are pushed to a collector
+    #[arg(long, env, action(ArgAction::SetTrue))]
+    pub console: bool,
+
+    /// Enable saving traces locally with tracing-chrome crate.
+    /// This will save the traces in the current working directory as `trace-timestamp.json`
+    #[arg(long, env, action(ArgAction::SetTrue))]
+    pub trace_local: bool,
 
     /// The TLS configuration
     #[serde(default)]
@@ -36,6 +50,7 @@ pub struct TlsConfig {
 }
 
 impl Config {
+    #[tracing::instrument(level = "trace")]
     pub fn from_toml(path: &str) -> Result<Self> {
         let str = std::fs::read_to_string(path)?;
         let config = toml::from_str(&str)?;

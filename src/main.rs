@@ -17,9 +17,10 @@
 
 use std::net::SocketAddr;
 use std::option::Option;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+use axum::extract::MatchedPath;
 use axum::extract::{DefaultBodyLimit, FromRef, Multipart, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
@@ -35,12 +36,13 @@ use axum_server::Handle;
 use candle_transformers::models::mixformer;
 use clap::Parser;
 use clap_serde_derive::ClapSerde;
-use env_logger::Env;
 use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
-use log::{error, info};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+use tower_http::trace::TraceLayer;
+use tracing::instrument;
+use tracing::{error, info, warn};
 
 #[cfg(unix)]
 use tikv_jemallocator::Jemalloc;
@@ -66,6 +68,7 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
     TranscribeHandler, TranscribeRequest, TranscribeResponse,
 };
+use crate::telemetry::init_telemetry;
 
 #[cfg(unix)]
 #[global_allocator]
@@ -75,6 +78,7 @@ pub mod api;
 mod config;
 pub mod error;
 mod inference;
+mod telemetry;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -88,7 +92,7 @@ struct Args {
     pub opt_config: <Config as ClapSerde>::Opt,
 }
 
-#[derive(Clone, FromRef)]
+#[derive(Debug, Clone, FromRef)]
 struct AppState {
     db_pool: SqlitePool,
     auth: Auth,
@@ -211,10 +215,10 @@ lazy_static! {
     .unwrap();
 }
 
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
+#[instrument]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
     let args = Args::parse();
     let config = match Config::from_toml(&args.config_file) {
         Ok(conf) => conf.merge(args.opt_config),
@@ -231,6 +235,21 @@ async fn main() -> Result<()> {
             }
         }
     };
+
+    // Init telemetry
+    let _guards = init_telemetry(&config.otel_endpoint, config.console, config.trace_local);
+
+    info!(
+        "model_runner v{}",
+        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+    );
+    info!(
+        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
+        candle_core::utils::with_avx(),
+        candle_core::utils::with_neon(),
+        candle_core::utils::with_simd128(),
+        candle_core::utils::with_f16c()
+    );
 
     let sqlite_options = SqliteConnectOptions::new()
         .create_if_missing(true)
@@ -271,23 +290,14 @@ async fn main() -> Result<()> {
             auth_middleware,
         ))
         .route("/health", get(handle_health_request))
+        .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(track_request))
         .with_state(app_state);
 
     let addr = format!("{}:{}", config.address, config.port)
         .parse::<SocketAddr>()
         .context("Failed to create socket from address and port")?;
-    info!(
-        "model_runner v{}",
-        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
-    );
     info!("Listening on {}", addr);
-    info!(
-        "Supported features: avx: {}, neon: {}, simd128: {}, f16c: {}",
-        candle_core::utils::with_avx(),
-        candle_core::utils::with_neon(),
-        candle_core::utils::with_simd128(),
-        candle_core::utils::with_f16c()
-    );
 
     let shutdown_handle = Handle::new();
     tokio::spawn(shutdown_handler(shutdown_handle.clone()));
@@ -319,6 +329,7 @@ async fn main() -> Result<()> {
 }
 
 #[allow(clippy::redundant_pub_crate)]
+#[tracing::instrument(level = "info", skip(handle))]
 async fn shutdown_handler(handle: Handle) {
     let ctrl_c_signal = async {
         tokio::signal::ctrl_c()
@@ -346,6 +357,7 @@ async fn shutdown_handler(handle: Handle) {
     }
 }
 
+#[instrument(skip_all)]
 async fn auth_middleware(
     State(state): State<AppState>,
     TypedHeader(auth_header): TypedHeader<Authorization<Bearer>>,
@@ -362,14 +374,54 @@ async fn auth_middleware(
     client.has_permission(&Permission::USE_SELF)?;
 
     request.extensions_mut().insert(client);
+
+    info!(monotonic_counter.requests_authorized = 1);
     Ok(next.run(request).await)
 }
 
+#[tracing::instrument(level = "trace", skip(request))]
+fn get_scheme(request: &Request) -> String {
+    request
+        .uri()
+        .scheme_str()
+        .map_or_else(|| "http".to_string(), ToString::to_string)
+}
+
+#[tracing::instrument(level = "trace", skip(request))]
+fn get_path(request: &Request) -> String {
+    request.extensions().get::<MatchedPath>().map_or_else(
+        || request.uri().path().to_string(),
+        |matched_path| matched_path.as_str().to_string(),
+    )
+}
+
+#[instrument(skip_all)]
+async fn track_request(req: Request, next: Next) -> ModelResult<Response> {
+    let start = Instant::now();
+    let method = req.method().to_owned();
+    let path = get_path(&req);
+    let version = req.version();
+    let scheme = get_scheme(&req);
+
+    let response = next.run(req).await;
+    info!(
+        histogram.http.server.request.duration = start.elapsed().as_secs_f64(),
+        ?method,
+        path,
+        ?version,
+        scheme
+    );
+
+    Ok(response)
+}
+
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_health_request() -> ModelResult<StatusCode> {
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip(req))]
 #[axum_macros::debug_handler]
 async fn handle_status_request(
     State(state): State<AppState>,
@@ -393,6 +445,7 @@ async fn handle_status_request(
     Ok((StatusCode::OK, Json(client)))
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_create_request(
     State(state): State<AppState>,
@@ -411,6 +464,7 @@ async fn handle_create_request(
     Ok((StatusCode::OK, Json(client)))
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_delete_request(
     State(state): State<AppState>,
@@ -425,6 +479,7 @@ async fn handle_delete_request(
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip(req))]
 #[axum_macros::debug_handler]
 async fn handle_update_request(
     State(state): State<AppState>,
@@ -452,6 +507,7 @@ async fn handle_update_request(
     Ok(StatusCode::OK)
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_raw_request(
     Json(req): Json<RawRequest>,
@@ -473,6 +529,7 @@ async fn handle_raw_request(
     }
 }
 
+#[tracing::instrument(level = "trace", skip())]
 #[axum_macros::debug_handler]
 async fn handle_instruct_request(
     Json(req): Json<InstructRequest>,
@@ -500,6 +557,7 @@ async fn handle_instruct_request(
     }
 }
 
+#[tracing::instrument(level = "trace", skip(multipart))]
 #[axum_macros::debug_handler]
 async fn handle_transcribe_request(
     mut multipart: Multipart,

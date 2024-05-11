@@ -11,6 +11,7 @@ pub struct GeneralModelConfig {
 }
 
 impl Default for GeneralModelConfig {
+    #[tracing::instrument(level = "trace", skip())]
     fn default() -> Self {
         Self {
             seed: random(),

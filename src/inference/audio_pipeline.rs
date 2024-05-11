@@ -15,14 +15,16 @@ use candle_transformers::models::whisper::{
 };
 use candle_transformers::quantized_var_builder::VarBuilder;
 use hf_hub::api::sync::ApiRepo;
-use log::{debug, error};
 use rand::distributions::Distribution;
 use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
+use tracing::{debug, error};
 
 use crate::inference::pcm_decode::pcm_decode;
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/whisper/main.rs
+
+#[derive(Debug)]
 pub struct AudioGeneratorPipeline {
     model: Whisper,
     tokenizer: Tokenizer,
@@ -40,6 +42,7 @@ pub struct AudioGeneratorPipeline {
 }
 
 impl Clone for AudioGeneratorPipeline {
+    #[tracing::instrument(level = "trace")]
     fn clone(&self) -> Self {
         Self {
             model: self.model.clone(),
@@ -60,6 +63,7 @@ impl Clone for AudioGeneratorPipeline {
 }
 
 impl AudioGeneratorPipeline {
+    #[tracing::instrument(level = "trace", skip(repo))]
     pub fn with_gguf_model(
         repo: &ApiRepo,
         config_filename: &str,
@@ -128,6 +132,7 @@ impl AudioGeneratorPipeline {
         })
     }
 
+    #[tracing::instrument(level = "trace", skip(input))]
     pub fn transcribe(&mut self, input: Box<[u8]>, language_token: &str) -> Result<Vec<Segment>> {
         let mel = self.load_mel(input)?;
         let (_, _, content_frames) = mel.dims3()?;
@@ -158,6 +163,7 @@ impl AudioGeneratorPipeline {
         Ok(segments)
     }
 
+    #[tracing::instrument(level = "trace", skip(self, segment, language_token))]
     fn decode_with_fallback(
         &mut self,
         segment: &Tensor,
@@ -185,6 +191,7 @@ impl AudioGeneratorPipeline {
         unreachable!()
     }
 
+    #[tracing::instrument(level = "trace", skip(self, mel, t, language_token))]
     fn decode(&mut self, mel: &Tensor, t: f64, language_token: u32) -> Result<DecodingResult> {
         let model = &mut self.model;
         let audio_features = model.encoder.forward(mel, true)?;
@@ -263,6 +270,7 @@ impl AudioGeneratorPipeline {
         })
     }
 
+    #[tracing::instrument(level = "trace", skip(self, input))]
     fn load_mel(&self, input: Box<[u8]>) -> Result<Tensor> {
         let cursor = Cursor::new(input);
         let (pcm_data, sample_rate) = pcm_decode(cursor)?;
@@ -302,6 +310,7 @@ pub struct DecodingResult {
     compression_ratio: f64,
 }
 
+#[tracing::instrument(level = "trace", skip(tokenizer, token))]
 pub fn token_id(tokenizer: &Tokenizer, token: &str) -> Result<u32> {
     match tokenizer.token_to_id(token) {
         None => bail!("no token-id for {token}"),

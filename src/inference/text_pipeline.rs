@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
@@ -29,7 +30,7 @@ pub struct TextGeneratorPipeline {
     pub top_p: Option<f64>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Model {
     Phi2(Option<MixFormerSequentialForCausalLM>),
     Phi3(Option<ModelWeights>),
@@ -37,13 +38,31 @@ pub enum Model {
     OpenHermes(Option<ModelWeights>),
     StableLm(Option<QStableLM>),
 }
-
+#[derive(Debug)]
 pub enum ModelConfig {
     Phi2(mixformer::Config),
     StableLm(StableLmConfig),
 }
 
+impl Debug for TextGeneratorPipeline {
+    #[tracing::instrument(level = "trace", skip(self, f))]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextGeneratorPipeline")
+            .field("model", &self.model)
+            .field("model", &self.model)
+            .field("device", &self.device)
+            .field("tokenizer", &self.tokenizer)
+            .field("repeat_penalty", &self.repeat_penalty)
+            .field("repeat_context_size", &self.repeat_context_size)
+            .field("seed", &self.seed)
+            .field("temperature", &self.temperature)
+            .field("top_p", &self.top_p)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Clone for TextGeneratorPipeline {
+    #[tracing::instrument(level = "trace", skip(self))]
     fn clone(&self) -> Self {
         Self {
             model: self.model.clone(),
@@ -64,6 +83,7 @@ impl Clone for TextGeneratorPipeline {
 }
 
 impl TextGeneratorPipeline {
+    #[tracing::instrument(level = "debug", skip(repo))]
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf_config(
         repo: &ApiRepo,
@@ -116,6 +136,7 @@ impl TextGeneratorPipeline {
         Ok(pipeline)
     }
 
+    #[tracing::instrument(level = "debug", skip(repo))]
     #[allow(clippy::too_many_arguments)]
     pub fn with_quantized_gguf(
         repo: &ApiRepo,
@@ -156,6 +177,7 @@ impl TextGeneratorPipeline {
 
         Ok(pipeline)
     }
+    #[tracing::instrument(level = "info", skip(prompt))]
     pub fn generate(&mut self, prompt: &str, max_length: usize) -> Result<(String, f64)> {
         if let Model::Phi2(Some(ref mut m)) = self.model {
             m.clear_kv_cache();

@@ -18,6 +18,7 @@ pub struct StableLm2Model {
 }
 
 impl StableLm2Model {
+    #[tracing::instrument(level = "info", skip(api))]
     pub fn new(
         api: &Api,
         base: &ModelBase,
@@ -60,6 +61,7 @@ impl StableLm2Model {
 }
 
 impl RawHandler for StableLm2Model {
+    #[tracing::instrument(level = "info", skip(self, request))]
     fn run_raw(&mut self, request: RawRequest) -> Result<RawResponse> {
         let pipeline = &mut self.generator_pipeline;
         let logits = LogitsProcessor::new(
@@ -81,6 +83,7 @@ impl RawHandler for StableLm2Model {
 }
 
 impl InstructHandler for StableLm2Model {
+    #[tracing::instrument(level = "info", skip(self, request))]
     fn run_instruct(&mut self, request: InstructRequest) -> Result<InstructResponse> {
         let prompt = if self.insert_prompt {
             format!("<|user|>\n{}<|endoftext|>\n<|assistant|>\n", request.input)
