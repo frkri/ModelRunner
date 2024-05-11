@@ -25,7 +25,7 @@ name = "model_runner_health"
 path = "src/bin/health.rs"
 
 [dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.83"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 tracing-opentelemetry = { version = "0.23.0", features = ["metrics"] }
