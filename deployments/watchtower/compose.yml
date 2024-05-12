@@ -1,0 +1,14 @@
+include:
+  - path:
+      - ../compose.yml
+
+services:
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower:1.7.1
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --cleanup --scope modelrunner --rolling-restart --interval 1800 # Every 30 minutes
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"

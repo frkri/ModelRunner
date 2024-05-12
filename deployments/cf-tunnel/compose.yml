@@ -1,0 +1,16 @@
+include:
+  - path:
+      - ../compose.yml
+
+services:
+  cloudflare-tunnel:
+    container_name: cloudflare-tunnel
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: <YOUR_TOKEN>
+    networks:
+      - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"

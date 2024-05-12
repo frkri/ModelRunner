@@ -1,0 +1,22 @@
+include:
+  - path:
+      - ../compose.yml
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # - "--log.level=DEBUG"
+      # - "--api.insecure=true" # API and Dashboard can be enabled here
+    ports:
+      - 80:80
+      # - 8080:8080 # Uncomment to expose the dashboard, API and metric endpoints
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../traefik/config/traefik/traefik.yml:/etc/traefik/traefik.yml
+    networks:
+      - mesh
+    labels:
+      - "com.centurylinklabs.watchtower.scope=modelrunner"
