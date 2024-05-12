@@ -22,11 +22,13 @@ services:
       timeout: 15s
       retries: 3
     environment:
-      - RUST_LOG=info
       - SQLITE_FILE_PATH=/ModelRunner/db/model_runner.db
       - HF_HOME=/ModelRunner/hf-cache
       - ADDRESS=0.0.0.0
       - PORT=25566
+      # - OTEL_ENDPOINT=http://otel-collector:4317 # Exports telemetry data to the specified endpoint, use in combination with telemetry compose file
+      # - CONSOLE=true # When set to true, the logs will always be printed to the console regardless of the OTEL_ENDPOINT being set or not
+      # - TRACE_LOCAL=true # Rather than sending telemetry data to the OTEL_ENDPOINT this will store traces in a local file
       # - CONFIG_FILE=/ModelRunner/ModelRunner.toml
       # - CERTIFICATE=/run/secrets/cert-file
       # - PRIVATE_KEY=/run/secrets/key-file
