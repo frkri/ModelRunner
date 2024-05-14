@@ -204,6 +204,15 @@ impl TextGeneratorPipeline {
                 Some(token) => *token,
                 None => bail!("Cannot find <|end|> token"),
             },
+            Model::Phi2(_) => match self
+                .tokenizer
+                .tokenizer()
+                .get_vocab(true)
+                .get("<|endoftext|>")
+            {
+                Some(token) => *token,
+                None => bail!("Cannot find <|endoftext|> token"),
+            },
             _ => match self.tokenizer.tokenizer().get_vocab(true).get("<|im_end|>") {
                 Some(token) => *token,
                 None => bail!("Cannot find the <|im_end|> token"),
