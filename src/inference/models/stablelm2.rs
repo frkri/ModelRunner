@@ -35,7 +35,7 @@ impl StableLm2Model {
         let stablelm_repo = api.repo(Repo::with_revision(
             "stabilityai/stablelm-2-zephyr-1_6b".into(),
             RepoType::Model,
-            "095f80bcaa049c014925fec31d145754751899e6".into(), // TODO change later
+            "main".into(),
         ));
         let config = std::fs::read_to_string(stablelm_repo.get("config.json")?)?;
         let config: Config = serde_json::from_str(&config)?;
