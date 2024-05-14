@@ -124,7 +124,7 @@ lazy_static! {
             license: "MIT".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct]),
             repo_id: "microsoft/Phi-3-mini-4k-instruct-gguf".into(),
-            repo_revision: "main".into(),
+            repo_revision: "5eef2ce24766d31909c0b269fe90c817a8f263fb".into(),
         },
         "microsoft/Phi-3-mini-4k-instruct",
         "tokenizer.json",
