@@ -11,17 +11,10 @@ use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::text_pipeline::{Model, TextGeneratorPipeline};
 
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/mistral/main.rs
+#[derive(Clone)]
 pub struct OpenHermesModel {
+    pub base: ModelBase,
     generator_pipeline: TextGeneratorPipeline,
-}
-
-impl Clone for OpenHermesModel {
-    #[tracing::instrument(level = "trace", skip(self))]
-    fn clone(&self) -> Self {
-        Self {
-            generator_pipeline: self.generator_pipeline.clone(),
-        }
-    }
 }
 
 impl OpenHermesModel {
@@ -31,15 +24,15 @@ impl OpenHermesModel {
     )]
     pub fn new(
         api: &Api,
-        base: ModelBase,
+        base: &ModelBase,
         tokenizer_filename: &str,
         gguf_filename: &str,
         general_model_config: GeneralModelConfig,
     ) -> Result<Self> {
         let repo = api.repo(Repo::with_revision(
-            base.repo_id,
+            base.repo_id.clone(),
             RepoType::Model,
-            base.repo_revision,
+            base.repo_revision.clone(),
         ));
         let mistral_repo = api.repo(Repo::with_revision(
             "mistralai/Mistral-7B-Instruct-v0.1".into(),
@@ -60,7 +53,10 @@ impl OpenHermesModel {
             general_model_config.repeat_context_size,
         )?;
 
-        Ok(Self { generator_pipeline })
+        Ok(Self {
+            base: base.clone(),
+            generator_pipeline,
+        })
     }
 }
 

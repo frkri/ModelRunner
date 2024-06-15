@@ -1,0 +1,9 @@
+### Get info about a model
+POST http://{{host}}:{{port}}/model/info
+content-type: application/json
+authorization: Bearer {{api_key}}
+
+{
+  "model": "mistral7b"
+}
+

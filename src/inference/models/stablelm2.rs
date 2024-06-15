@@ -13,6 +13,7 @@ use crate::ModelBase;
 
 #[derive(Clone)]
 pub struct StableLm2Model {
+    pub base: ModelBase,
     generator_pipeline: TextGeneratorPipeline,
     insert_prompt: bool,
 }
@@ -54,6 +55,7 @@ impl StableLm2Model {
         )?;
 
         Ok(Self {
+            base: base.clone(),
             generator_pipeline,
             insert_prompt,
         })

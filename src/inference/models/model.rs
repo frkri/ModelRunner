@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ModelBase {
     /// The name of the models
     pub name: String,
@@ -18,7 +18,7 @@ pub struct ModelBase {
     pub repo_revision: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ModelDomain {
     Text(Vec<TextTask>),
@@ -26,7 +26,7 @@ pub enum ModelDomain {
     Audio(AudioTask),
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum TextTask {
     Chat,
@@ -37,14 +37,14 @@ pub enum TextTask {
     Identify,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum VideoTask {
     Describe,
     Generate,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum AudioTask {
     Transcribe,

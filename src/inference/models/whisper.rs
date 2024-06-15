@@ -10,6 +10,7 @@ use crate::inference::task::transcribe::{TranscribeHandler, TranscribeResponse};
 // Taken from https://github.com/huggingface/candle/blob/main/candle-examples/examples/whisper/main.rs
 #[derive(Clone)]
 pub struct WhisperModel {
+    pub base: ModelBase,
     generator_pipeline: AudioGeneratorPipeline,
 }
 
@@ -38,7 +39,10 @@ impl WhisperModel {
             rand::rngs::StdRng::from_seed([0; 32]),
         )?;
 
-        Ok(Self { generator_pipeline })
+        Ok(Self {
+            base: base.clone(),
+            generator_pipeline,
+        })
     }
 }
 

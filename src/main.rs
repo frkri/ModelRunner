@@ -63,6 +63,7 @@ use crate::inference::models::openhermes::OpenHermesModel;
 use crate::inference::models::phi::PhiModel;
 use crate::inference::models::stablelm2::StableLm2Model;
 use crate::inference::models::whisper::WhisperModel;
+use crate::inference::task::info::InfoRequest;
 use crate::inference::task::instruct::{InstructHandler, InstructRequest, InstructResponse};
 use crate::inference::task::raw::{RawHandler, RawRequest, RawResponse};
 use crate::inference::task::transcribe::{
@@ -153,7 +154,7 @@ lazy_static! {
     .unwrap();
     static ref MISTRAL7B_INSTRUCT_MODEL: Mistral7BModel = Mistral7BModel::new(
         &Api::new().expect("Failed to create API"),
-        ModelBase {
+        &ModelBase {
             name: "Quantized Mistral7B Instruct".into(),
             license: "Apache 2.0".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
@@ -168,7 +169,7 @@ lazy_static! {
     .unwrap();
     static ref OPENHERMES_MODEL: OpenHermesModel = OpenHermesModel::new(
         &Api::new().expect("Failed to create API"),
-        ModelBase {
+        &ModelBase {
             name: "Quantized OpenHermes-2.5 Mistral7B".into(),
             license: "Apache 2.0".into(),
             domain: ModelDomain::Text(vec![TextTask::Chat, TextTask::Instruct,]),
@@ -266,6 +267,8 @@ async fn main() -> Result<()> {
         auth: Auth::default(),
     };
 
+    let model_router = Router::new().route("/info", post(handle_model_info_request));
+
     let text_router = Router::new()
         .route("/raw", post(handle_raw_request))
         .route("/instruct", post(handle_instruct_request));
@@ -282,6 +285,7 @@ async fn main() -> Result<()> {
         .route("/update", post(handle_update_request));
 
     let router = Router::new()
+        .nest("/model", model_router)
         .nest("/auth", auth_router)
         .nest("/text", text_router)
         .nest("/audio", audio_router)
@@ -505,6 +509,23 @@ async fn handle_update_request(
         )
         .await?;
     Ok(StatusCode::OK)
+}
+
+#[tracing::instrument(level = "trace", skip())]
+#[axum_macros::debug_handler]
+async fn handle_model_info_request(
+    Json(req): Json<InfoRequest>,
+) -> ModelResult<(StatusCode, Json<ModelBase>)> {
+    match req.model.as_str() {
+        "phi2" => Ok((StatusCode::OK, Json(PHI2_MODEL.base.clone()))),
+        "phi3" => Ok((StatusCode::OK, Json(PHI3_MODEL.base.clone()))),
+        "mistral7b" => Ok((StatusCode::OK, Json(MISTRAL7B_INSTRUCT_MODEL.base.clone()))),
+        "openhermes" => Ok((StatusCode::OK, Json(OPENHERMES_MODEL.base.clone()))),
+        "stablelm2zephyr" => Ok((StatusCode::OK, Json(STABLELM2_ZEPHYR_MODEL.base.clone()))),
+        "stablelm2" => Ok((StatusCode::OK, Json(STABLELM2_MODEL.base.clone()))),
+        "whisper" => Ok((StatusCode::OK, Json(WHISPER_MODEL.base.clone()))),
+        _ => bail_runner!(StatusCode::NOT_FOUND, "Model {} not found", req.model),
+    }
 }
 
 #[tracing::instrument(level = "trace", skip())]

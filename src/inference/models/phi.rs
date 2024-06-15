@@ -13,6 +13,7 @@ use crate::ModelBase;
 
 #[derive(Clone)]
 pub struct PhiModel {
+    pub base: ModelBase,
     generator_pipeline: TextGeneratorPipeline,
     alt_prompt: bool,
 }
@@ -75,6 +76,7 @@ impl PhiModel {
         };
 
         Ok(Self {
+            base: base.clone(),
             generator_pipeline,
             alt_prompt,
         })
