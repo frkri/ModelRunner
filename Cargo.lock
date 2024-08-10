@@ -1872,7 +1872,7 @@ dependencies = [
  "clap-serde-derive",
  "hf-hub",
  "lazy_static",
- "opentelemetry 0.23.0",
+ "opentelemetry 0.24.0",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk 0.24.1",
