@@ -43,7 +43,7 @@ axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 serde = { version = "1.0.208", features = ["serde_derive"] }
-serde_json = "1.0.120"
+serde_json = "1.0.125"
 toml = "0.8.13"
 clap = { version = "4.5.9", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
