@@ -44,7 +44,7 @@ axum-macros = "0.4.1"
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 serde = { version = "1.0.208", features = ["serde_derive"] }
 serde_json = "1.0.120"
-toml = "0.8.13"
+toml = "0.8.15"
 clap = { version = "4.5.9", features = ["derive", "color", "env"] }
 clap-serde-derive = "0.2.1"
 tokenizers = "0.19.1"
