@@ -28,7 +28,7 @@ path = "src/bin/health.rs"
 anyhow = "1.0.86"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
-tracing-opentelemetry = { version = "0.24.0", features = ["metrics"] }
+tracing-opentelemetry = { version = "0.25.0", features = ["metrics"] }
 tracing-chrome = "0.7.2"
 opentelemetry = { version = "0.24.0", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio", "metrics", "trace"] }
