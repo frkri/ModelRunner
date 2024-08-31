@@ -39,7 +39,7 @@ tokio = { version = "1.39.2", features = ["macros", "rt-multi-thread", "rt", "si
 lazy_static = "1.4.0"
 reqwest = { version = "0.12.4", default-features = false, features = ["blocking", "rustls-tls"] }
 axum = { version = "0.7.5", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "tokio", "tower-log", "tracing", "http2", "macros", "multipart"] }
-axum-server = { version = "0.6.0", features = ["tls-rustls"] }
+axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 axum-macros = "0.4.1"
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 serde = { version = "1.0.208", features = ["serde_derive"] }
